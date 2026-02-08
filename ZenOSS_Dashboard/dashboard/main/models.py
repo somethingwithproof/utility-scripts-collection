@@ -4,6 +4,7 @@ import time
 
 # Create your models here.
 
+
 class zenoss_rrd_datasource(models.Model):
     id = models.AutoField(primary_key=True)
     uid = models.CharField(max_length=16384, blank=False, unique=True)
@@ -11,10 +12,10 @@ class zenoss_rrd_datasource(models.Model):
     name = models.CharField(max_length=256, blank=True)
     newId = models.CharField(max_length=256, blank=True)
     RRD_VALUE_TYPES = (
-        (u'C', u'COUNTER'),
-        (u'G', u'GAUGE'),
-        (u'D', u'DERIVE'),
-        (u'A', u'ABSOLUTE'),
+        ("C", "COUNTER"),
+        ("G", "GAUGE"),
+        ("D", "DERIVE"),
+        ("A", "ABSOLUTE"),
     )
     rrdType = models.CharField(max_length=2, choices=RRD_VALUE_TYPES)
     type = models.CharField(max_length=20, blank=True)
@@ -23,14 +24,17 @@ class zenoss_rrd_datasource(models.Model):
     def __unicode__(self):
         return self.name
 
+
 class zenoss_rrd_template(models.Model):
     id = models.AutoField(primary_key=True)
     path = models.CharField(max_length=512, blank=True, unique=True)
     text = models.CharField(max_length=512, blank=True)
     uid = models.CharField(max_length=16384, blank=False, unique=False)
     datapoints = models.ManyToManyField(zenoss_rrd_datasource)
+
     def __unicode__(self):
         return self.text
+
 
 class zenoss_location(models.Model):
     id = models.AutoField(primary_key=True)
@@ -39,6 +43,7 @@ class zenoss_location(models.Model):
 
     def __unicode__(self):
         return self.name
+
 
 class zenoss_device(models.Model):
     id = models.AutoField(primary_key=True)
@@ -53,6 +58,7 @@ class zenoss_device(models.Model):
     def __unicode__(self):
         return self.uid
 
+
 class zenoss_rrd_performance_point(models.Model):
     id = models.AutoField(primary_key=True)
     template = models.ForeignKey(zenoss_rrd_template, blank=False)
@@ -64,7 +70,13 @@ class zenoss_rrd_performance_point(models.Model):
     value_str = models.CharField(max_length=256, blank=True, null=True)
 
     def __unicode__(self):
-        return self.device.uid + " :: " + str(self.timestamp) + " :: " + self.value_str
+        return (
+            self.device.uid
+            + " :: "
+            + str(self.timestamp)
+            + " :: "
+            + self.value_str
+        )
 
     def unixtm(self):
-        return int(time.mktime(self.timestamp.timetuple())*1000)
+        return int(time.mktime(self.timestamp.timetuple()) * 1000)

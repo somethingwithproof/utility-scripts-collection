@@ -6,13 +6,14 @@ all utility scripts, supporting environment variables, config files,
 and command-line arguments.
 """
 
-import os
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-import yaml
 from dotenv import load_dotenv
+import yaml
+
 
 logger = logging.getLogger(__name__)
 
@@ -102,7 +103,9 @@ class ConfigManager:
         except Exception as e:
             logger.error(f"Error loading config file {file_path}: {str(e)}")
 
-    def _merge_configs(self, base: Dict[str, Any], overlay: Dict[str, Any]) -> None:
+    def _merge_configs(
+        self, base: Dict[str, Any], overlay: Dict[str, Any]
+    ) -> None:
         """Recursively merge two configuration dictionaries.
 
         Args:
@@ -110,7 +113,11 @@ class ConfigManager:
             overlay: The overlay configuration to merge into base.
         """
         for key, value in overlay.items():
-            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            if (
+                key in base
+                and isinstance(base[key], dict)
+                and isinstance(value, dict)
+            ):
                 self._merge_configs(base[key], value)
             else:
                 base[key] = value

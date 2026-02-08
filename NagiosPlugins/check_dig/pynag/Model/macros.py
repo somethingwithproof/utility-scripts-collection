@@ -15,17 +15,17 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-'''
+"""
 This file contains a dict object that maps Nagios Standard macronames to specific values.
 
 i.e. macros['$HOSTADDR$'] should return 'address'
-'''
+"""
 
 # TODO: This hash map is incomplete, someone should type everything from the documentation to here:
 # See: http://nagios.sourceforge.net/docs/3_0/macrolist.html
 
 _standard_macros = {
-                   '$HOSTADDRESS$':'address',
-                   '$HOSTNAME':'host_name',
-                   '$SERVICEDESC':'service_description',
-                   }
+    "$HOSTADDRESS$": "address",
+    "$HOSTNAME": "host_name",
+    "$SERVICEDESC": "service_description",
+}

@@ -11,11 +11,11 @@ For more options:
 """
 
 import argparse
+from dataclasses import dataclass, field
+from email.mime.text import MIMEText
 import logging
 import os
 import smtplib
-from dataclasses import dataclass, field
-from email.mime.text import MIMEText
 from typing import Dict, List, Optional, Tuple, Union
 
 import requests
@@ -26,6 +26,7 @@ from utility_scripts.common.exceptions import (
     UtilityScriptError,
 )
 from utility_scripts.common.logging import get_logger, setup_logging
+
 
 # Get logger for this module
 logger = get_logger(__name__)
@@ -46,10 +47,10 @@ class CheckTarget:
     port: int
     scheme: str  # 'http' or 'https'
     path: str = "/"  # Path to check
-    
+
     def get_url(self) -> str:
         """Constructs the full URL for the check.
-        
+
         Returns:
             str: The complete URL including scheme, host, port, and path.
         """
@@ -92,7 +93,7 @@ class HttpCheckError(UtilityScriptError):
 
     def __init__(self, message: str = "HTTP check failed"):
         """Initialize with a custom message.
-        
+
         Args:
             message: Description of the HTTP check error.
         """
@@ -104,7 +105,7 @@ class NotificationError(UtilityScriptError):
 
     def __init__(self, message: str = "Notification failed"):
         """Initialize with a custom message.
-        
+
         Args:
             message: Description of the notification error.
         """
@@ -117,7 +118,7 @@ class HttpChecker:
 
     def __init__(self, timeout: int = DEFAULT_TIMEOUT):
         """Initialize the HTTP checker.
-        
+
         Args:
             timeout: Request timeout in seconds.
         """
@@ -136,7 +137,9 @@ class HttpChecker:
         logger.info(f"Checking URL: {url}")
         try:
             response = requests.get(url, timeout=self._timeout)
-            logger.info(f"Check successful for {url}. Status: {response.status_code}")
+            logger.info(
+                f"Check successful for {url}. Status: {response.status_code}"
+            )
             return CheckResult(
                 target=target,
                 success=True,
@@ -145,16 +148,34 @@ class HttpChecker:
             )
         except requests.exceptions.Timeout:
             logger.error(f"Timeout occurred while checking {url}")
-            return CheckResult(target=target, success=False, error_message="Request timed out")
+            return CheckResult(
+                target=target, success=False, error_message="Request timed out"
+            )
         except requests.exceptions.ConnectionError as e:
             logger.error(f"Connection error while checking {url}: {e}")
-            return CheckResult(target=target, success=False, error_message=f"Connection error: {e}")
+            return CheckResult(
+                target=target,
+                success=False,
+                error_message=f"Connection error: {e}",
+            )
         except requests.exceptions.RequestException as e:
-            logger.error(f"An unexpected error occurred during HTTP check for {url}: {e}")
-            return CheckResult(target=target, success=False, error_message=f"HTTP request error: {e}")
+            logger.error(
+                f"An unexpected error occurred during HTTP check for {url}: {e}"
+            )
+            return CheckResult(
+                target=target,
+                success=False,
+                error_message=f"HTTP request error: {e}",
+            )
         except Exception as e:
-            logger.exception(f"An unexpected non-HTTP error occurred during check for {url}")
-            return CheckResult(target=target, success=False, error_message=f"Unexpected error: {e}")
+            logger.exception(
+                f"An unexpected non-HTTP error occurred during check for {url}"
+            )
+            return CheckResult(
+                target=target,
+                success=False,
+                error_message=f"Unexpected error: {e}",
+            )
 
 
 class Notifier:
@@ -162,11 +183,11 @@ class Notifier:
 
     def notify(self, subject: str, body: str) -> None:
         """Sends a notification.
-        
+
         Args:
             subject: The notification subject.
             body: The notification content.
-            
+
         Raises:
             NotImplementedError: This method must be implemented by subclasses.
         """
@@ -178,7 +199,7 @@ class EmailNotifier(Notifier):
 
     def __init__(self, smtp_config: SmtpConfig, details: NotificationDetails):
         """Initialize the email notifier with configuration.
-        
+
         Args:
             smtp_config: Configuration for the SMTP server.
             details: Details for sending notifications.
@@ -203,7 +224,9 @@ class EmailNotifier(Notifier):
         msg["From"] = self._config.sender_address
         msg["To"] = self._details.recipient_email
 
-        logger.info(f"Attempting to send email notification to {self._details.recipient_email}")
+        logger.info(
+            f"Attempting to send email notification to {self._details.recipient_email}"
+        )
 
         try:
             # Use 'with' statement for automatic connection closing
@@ -237,7 +260,9 @@ class EmailNotifier(Notifier):
             logger.error(f"Network error during SMTP connection: {e}")
             raise NetworkError(f"Network error during SMTP connection: {e}")
         except Exception as e:
-            logger.exception("An unexpected error occurred during email notification")
+            logger.exception(
+                "An unexpected error occurred during email notification"
+            )
             raise NotificationError(f"Unexpected error sending email: {e}")
 
 
@@ -245,10 +270,11 @@ class EmailNotifier(Notifier):
 class ServerMonitor:
     """Orchestrates server checking and notification."""
 
-    def __init__(self, checker: HttpChecker, notifier: Notifier, 
-                 alert_codes: List[int]):
+    def __init__(
+        self, checker: HttpChecker, notifier: Notifier, alert_codes: List[int]
+    ):
         """Initialize the server monitor.
-        
+
         Args:
             checker: HTTP checker to use for requests.
             notifier: Notifier to use for sending alerts.
@@ -260,18 +286,22 @@ class ServerMonitor:
 
     def run_check_and_notify(self, target: CheckTarget) -> None:
         """Runs the check and sends notification if an alert code is matched.
-        
+
         Args:
             target: The target to check.
         """
         result = self._checker.check(target)
 
         if not result.success:
-            logger.warning(f"Check failed for {target.get_url()}: {result.error_message}")
+            logger.warning(
+                f"Check failed for {target.get_url()}: {result.error_message}"
+            )
             return  # Don't proceed if the check itself failed
 
         if result.status_code is None:
-            logger.warning(f"Check succeeded but no status code received for {target.get_url()}")
+            logger.warning(
+                f"Check succeeded but no status code received for {target.get_url()}"
+            )
             return  # Cannot compare status code if none exists
 
         if result.status_code in self._alert_codes:
@@ -296,7 +326,9 @@ class ServerMonitor:
                 self._notifier.notify(subject, body.strip())
             except NotificationError as e:
                 # Log the failure, but the program continues
-                logger.error(f"Failed to send notification for {target.get_url()}: {e}")
+                logger.error(
+                    f"Failed to send notification for {target.get_url()}: {e}"
+                )
         else:
             logger.info(
                 f"Check OK for {target.get_url()}. "
@@ -307,7 +339,7 @@ class ServerMonitor:
 # Configuration Loading
 def load_smtp_config_from_env() -> SmtpConfig:
     """Loads SMTP configuration securely from environment variables.
-    
+
     Returns:
         SmtpConfig: Object with SMTP server configuration from environment
         variables.
@@ -316,12 +348,17 @@ def load_smtp_config_from_env() -> SmtpConfig:
     password = os.getenv("SMTP_PASSWORD")
 
     # Determine default sender address
-    default_sender = f"servermonitor@{os.uname().nodename}" if username else "servermonitor@example.com"
+    default_sender = (
+        f"servermonitor@{os.uname().nodename}"
+        if username
+        else "servermonitor@example.com"
+    )
 
     return SmtpConfig(
         server=os.getenv("SMTP_SERVER", DEFAULT_SMTP_SERVER),
         port=int(os.getenv("SMTP_PORT", DEFAULT_SMTP_PORT)),
-        use_tls=os.getenv("SMTP_USE_TLS", "true").lower() in ("true", "1", "yes"),
+        use_tls=os.getenv("SMTP_USE_TLS", "true").lower()
+        in ("true", "1", "yes"),
         sender_address=os.getenv("SMTP_FROM", default_sender),
         username=username,
         password=password,
@@ -330,37 +367,55 @@ def load_smtp_config_from_env() -> SmtpConfig:
 
 def main() -> None:
     """Parses command line arguments, sets up components, and runs the check.
-    
+
     Returns:
         None
     """
     # Set up logging
     setup_logging(log_level=os.getenv("LOG_LEVEL", "INFO"))
-    
-    parser = argparse.ArgumentParser(description="Monitor HTTP status codes on a server and notify via email.")
+
+    parser = argparse.ArgumentParser(
+        description="Monitor HTTP status codes on a server and notify via email."
+    )
     parser.add_argument(
-        "--email", required=True, 
-        help="Destination email address for notifications")
+        "--email",
+        required=True,
+        help="Destination email address for notifications",
+    )
     parser.add_argument(
-        "--host", required=True, 
-        help="Host address (e.g., example.com or IP) to check")
+        "--host",
+        required=True,
+        help="Host address (e.g., example.com or IP) to check",
+    )
     parser.add_argument(
-        "--port", type=int, default=None, 
-        help="Port number (default: 80 for http, 443 for https)")
+        "--port",
+        type=int,
+        default=None,
+        help="Port number (default: 80 for http, 443 for https)",
+    )
     parser.add_argument(
-        "--scheme", choices=["http", "https"], default=None, 
-        help="Protocol scheme (default: http for port 80, https for 443/other)")
+        "--scheme",
+        choices=["http", "https"],
+        default=None,
+        help="Protocol scheme (default: http for port 80, https for 443/other)",
+    )
     parser.add_argument(
-        "--path", default="/",
-        help="Path to check (default: /)")
+        "--path", default="/", help="Path to check (default: /)"
+    )
     parser.add_argument(
-        "--codes", type=int, nargs="+", 
+        "--codes",
+        type=int,
+        nargs="+",
         default=[500, 502, 503, 504],  # Default to common server error codes
         dest="alert_codes",
-        help="HTTP status codes to trigger alerts (default: 500 502 503 504)")
+        help="HTTP status codes to trigger alerts (default: 500 502 503 504)",
+    )
     parser.add_argument(
-        "--timeout", type=int, default=DEFAULT_TIMEOUT, 
-        help=f"Request timeout in seconds (default: {DEFAULT_TIMEOUT})")
+        "--timeout",
+        type=int,
+        default=DEFAULT_TIMEOUT,
+        help=f"Request timeout in seconds (default: {DEFAULT_TIMEOUT})",
+    )
 
     args = parser.parse_args()
 
@@ -373,19 +428,27 @@ def main() -> None:
         else:
             scheme = "http"  # Default to http if scheme unspecified and port isn't 443
     if port is None:
-        port = 443 if scheme == "https" else 80  # Default port based on final scheme
+        port = (
+            443 if scheme == "https" else 80
+        )  # Default port based on final scheme
 
     # Dependency Setup
     try:
-        check_target = CheckTarget(host=args.host, port=port, scheme=scheme, path=args.path)
+        check_target = CheckTarget(
+            host=args.host, port=port, scheme=scheme, path=args.path
+        )
         smtp_config = load_smtp_config_from_env()
         notification_details = NotificationDetails(recipient_email=args.email)
 
         http_checker = HttpChecker(timeout=args.timeout)
-        email_notifier = EmailNotifier(smtp_config=smtp_config, details=notification_details)
+        email_notifier = EmailNotifier(
+            smtp_config=smtp_config, details=notification_details
+        )
 
         monitor = ServerMonitor(
-            checker=http_checker, notifier=email_notifier, alert_codes=args.alert_codes
+            checker=http_checker,
+            notifier=email_notifier,
+            alert_codes=args.alert_codes,
         )
 
         # Run the Monitor
@@ -395,7 +458,9 @@ def main() -> None:
     except UtilityScriptError as e:
         logger.error(f"Configuration or setup error: {e}")
     except Exception as e:
-        logger.exception("An unexpected error occurred in the main execution block.")
+        logger.exception(
+            "An unexpected error occurred in the main execution block."
+        )
 
 
 if __name__ == "__main__":
