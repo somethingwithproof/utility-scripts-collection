@@ -1,12 +1,13 @@
 """Configuration management for OpsForge."""
 
-import os
 import logging
+import os
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
-import yaml
 from dotenv import load_dotenv
+import yaml
+
 
 logger = logging.getLogger(__name__)
 
@@ -41,7 +42,7 @@ class ConfigManager:
     def _load_from_env(self, prefix: str) -> None:
         for key, value in os.environ.items():
             if key.startswith(prefix):
-                parts = key[len(prefix):].lower().split("_")
+                parts = key[len(prefix) :].lower().split("_")
                 current = self.config
                 for part in parts[:-1]:
                     current = current.setdefault(part, {})
@@ -58,7 +59,11 @@ class ConfigManager:
 
     def _merge_configs(self, base: Dict, overlay: Dict) -> None:
         for key, value in overlay.items():
-            if key in base and isinstance(base[key], dict) and isinstance(value, dict):
+            if (
+                key in base
+                and isinstance(base[key], dict)
+                and isinstance(value, dict)
+            ):
                 self._merge_configs(base[key], value)
             else:
                 base[key] = value

@@ -8,9 +8,11 @@ all utility scripts, allowing for more specific error handling.
 class UtilityScriptError(Exception):
     """Base exception for all utility script errors."""
 
-    def __init__(self, message: str = "An error occurred in the utility script"):
+    def __init__(
+        self, message: str = "An error occurred in the utility script"
+    ):
         """Initialize the exception with a message.
-        
+
         Args:
             message: Description of the error.
         """
@@ -23,7 +25,7 @@ class ConfigurationError(UtilityScriptError):
 
     def __init__(self, message: str = "Configuration error"):
         """Initialize the exception with a message.
-        
+
         Args:
             message: Description of the configuration error.
         """
@@ -35,7 +37,7 @@ class NetworkError(UtilityScriptError):
 
     def __init__(self, message: str = "Network error"):
         """Initialize the exception with a message.
-        
+
         Args:
             message: Description of the network error.
         """
@@ -47,7 +49,7 @@ class ValidationError(UtilityScriptError):
 
     def __init__(self, message: str = "Validation error"):
         """Initialize the exception with a message.
-        
+
         Args:
             message: Description of the validation error.
         """
@@ -59,7 +61,7 @@ class AuthenticationError(UtilityScriptError):
 
     def __init__(self, message: str = "Authentication failed"):
         """Initialize the exception with a message.
-        
+
         Args:
             message: Description of the authentication error.
         """
@@ -71,7 +73,7 @@ class DataProcessingError(UtilityScriptError):
 
     def __init__(self, message: str = "Data processing failed"):
         """Initialize the exception with a message.
-        
+
         Args:
             message: Description of the data processing error.
         """
@@ -83,7 +85,7 @@ class ResourceNotFoundError(UtilityScriptError):
 
     def __init__(self, resource_type: str, identifier: str):
         """Initialize the exception with a resource type and identifier.
-        
+
         Args:
             resource_type: Type of resource that was not found.
             identifier: Identifier of the resource that was not found.

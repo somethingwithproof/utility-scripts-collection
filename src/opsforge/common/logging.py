@@ -1,8 +1,8 @@
 """Logging utilities for OpsForge."""
 
 import logging
-import sys
 from pathlib import Path
+import sys
 from typing import Dict, Optional, Union
 
 

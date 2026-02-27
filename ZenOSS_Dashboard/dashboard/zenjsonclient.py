@@ -15,29 +15,31 @@ DEFAULT_PORT = "8083"
 DEFAULT_USERNAME = "admin"
 DEFAULT_PASSWORD = "zenoss"
 
+
 class ZenJsonClientError(Exception):
     pass
 
+
 class Response(object):
     """A response to a query of the Zenoss JSON API
-    
-        action: The action (aka router) that was invoked (e.g. DeviceRouter)
 
-        method: The method that was invoked (e.g. getDevices)
+    action: The action (aka router) that was invoked (e.g. DeviceRouter)
 
-        result: a dictionary containing the result of the query. The keys of
-                this dictionary depend on the action and method that was 
-                called. Typically result["success"] will be True for a
-                successful query and False for an unsuccessful query. For
-                unsuccessful queries, typically, result["msg"] will contain an
-                error message.
+    method: The method that was invoked (e.g. getDevices)
 
-        tid:    the transaction ID which can be used to match up the query
-                with the response
+    result: a dictionary containing the result of the query. The keys of
+            this dictionary depend on the action and method that was
+            called. Typically result["success"] will be True for a
+            successful query and False for an unsuccessful query. For
+            unsuccessful queries, typically, result["msg"] will contain an
+            error message.
 
-        type_:   always "rpc" for remote procedure call
+    tid:    the transaction ID which can be used to match up the query
+            with the response
 
-        uuid:   a universally unique identifier
+    type_:   always "rpc" for remote procedure call
+
+    uuid:   a universally unique identifier
     """
 
     action = None
@@ -57,19 +59,24 @@ class Response(object):
 
     def __repr__(self):
         from pprint import pformat
-        return "<zenjsonclient.Response(action={action},\n" \
-               "                        method={method},\n" \
-               "                        tid={tid},\n" \
-               "                        type_={type_},\n" \
-               "                        uuid={uuid},\n" \
-               "                        result=\n{result},\n" \
-               ")>".format(action=self.action,
-                           method=self.method,
-                           tid=self.tid,
-                           type_=self.type_,
-                           uuid=self.uuid,
-                           result=pformat(self.result),
-                          )
+
+        return (
+            "<zenjsonclient.Response(action={action},\n"
+            "                        method={method},\n"
+            "                        tid={tid},\n"
+            "                        type_={type_},\n"
+            "                        uuid={uuid},\n"
+            "                        result=\n{result},\n"
+            ")>".format(
+                action=self.action,
+                method=self.method,
+                tid=self.tid,
+                type_=self.type_,
+                uuid=self.uuid,
+                result=pformat(self.result),
+            )
+        )
+
 
 def create_response(dct):
     if "type" in dct:
@@ -81,15 +88,25 @@ def create_response(dct):
             return dct
     return Response(**dct)
 
+
 class Client(object):
 
-    def __init__(self, protocol=DEFAULT_PROTOCOL, host=DEFAULT_HOST, port=DEFAULT_PORT, username=DEFAULT_USERNAME, password=DEFAULT_PASSWORD):
+    def __init__(
+        self,
+        protocol=DEFAULT_PROTOCOL,
+        host=DEFAULT_HOST,
+        port=DEFAULT_PORT,
+        username=DEFAULT_USERNAME,
+        password=DEFAULT_PASSWORD,
+    ):
         self.protocol = protocol if (protocol is not None) else DEFAULT_PROTOCOL
         self.host = host if (host is not None) else DEFAULT_HOST
         self.port = port if (port is not None) else DEFAULT_PORT
         self.username = username if (username is not None) else DEFAULT_USERNAME
         self.password = password if (password is not None) else DEFAULT_PASSWORD
-        self.base_url = "{0}://{1}:{2}".format(self.protocol, self.host, self.port)
+        self.base_url = "{0}://{1}:{2}".format(
+            self.protocol, self.host, self.port
+        )
         self.opener = None
 
     def open(self, url, data):
@@ -100,8 +117,12 @@ class Client(object):
             if e.args:
                 embedded_error = e.args[0]
                 if isinstance(embedded_error, ssl.SSLError):
-                    raise ZenJsonClientError(str(embedded_error).split(":")[-1].strip())
-                elif isinstance(embedded_error, (socket.gaierror, socket.error)):
+                    raise ZenJsonClientError(
+                        str(embedded_error).split(":")[-1].strip()
+                    )
+                elif isinstance(
+                    embedded_error, (socket.gaierror, socket.error)
+                ):
                     raise ZenJsonClientError(str(embedded_error.args[1]))
                 else:
                     raise ZenJsonClientError(str(embedded_error))
@@ -113,10 +134,14 @@ class Client(object):
 
     def login(self):
         self.opener = urllib2.build_opener(urllib2.HTTPCookieProcessor())
-        loginParams = urllib.urlencode(dict(__ac_name = self.username,
-                                            __ac_password = self.password,
-                                            submitted = "true",
-                                            came_from = "{0}/zport/dmd/".format(self.base_url)))
+        loginParams = urllib.urlencode(
+            dict(
+                __ac_name=self.username,
+                __ac_password=self.password,
+                submitted="true",
+                came_from="{0}/zport/dmd/".format(self.base_url),
+            )
+        )
         url = "{0}/zport/acl_users/cookieAuthHelper/login".format(self.base_url)
         self.open(url, loginParams)
         self.tid = 1
@@ -125,9 +150,21 @@ class Client(object):
         if self.opener is None:
             self.login()
             assert self.opener is not None
-        req = urllib2.Request("{0}/zport/dmd/{1}".format(self.base_url, url_path))
-        req.add_header('Content-type', 'application/json; charset=utf-8')
-        req_data = json.dumps([dict(action=action, method=method, data=data, type='rpc', tid=self.tid,)])
+        req = urllib2.Request(
+            "{0}/zport/dmd/{1}".format(self.base_url, url_path)
+        )
+        req.add_header("Content-type", "application/json; charset=utf-8")
+        req_data = json.dumps(
+            [
+                dict(
+                    action=action,
+                    method=method,
+                    data=data,
+                    type="rpc",
+                    tid=self.tid,
+                )
+            ]
+        )
         resp = self.open(req, req_data)
         json_str = resp.read()
         try:
@@ -135,17 +172,23 @@ class Client(object):
 
         except ValueError:
             self.opener = None
-            raise ZenJsonClientError("Could not authenticate to Zenoss instance or wrong port.")
+            raise ZenJsonClientError(
+                "Could not authenticate to Zenoss instance or wrong port."
+            )
 
         self.tid += 1
         return json_obj
 
+
 client = Client()
+
 
 class RouterContainer(object):
     pass
 
+
 router = RouterContainer()
+
 
 class ZenPackRouter(object):
 
@@ -153,7 +196,7 @@ class ZenPackRouter(object):
 
     def addToZenPack(self, topack, zenpack):
         """
-        
+
         Add an object to a ZenPack.
 
         @type  topack: string
@@ -162,38 +205,66 @@ class ZenPackRouter(object):
         @param zenpack: Unique ID of the ZenPack to add object to
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ZenPackRouter", "addToZenPack", [data])
+        resp = client.make_request(
+            self.url_path, "ZenPackRouter", "addToZenPack", [data]
+        )
         return create_response(resp)
 
     def getEligiblePacks(self, **data):
         """
-        
+
         Get a list of eligible ZenPacks to add to.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - packs: ([dictionary]) List of objects representing ZenPacks
              - totalCount: (integer) Total number of eligible ZenPacks
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ZenPackRouter", "getEligiblePacks", [data])
+        resp = client.make_request(
+            self.url_path, "ZenPackRouter", "getEligiblePacks", [data]
+        )
         return create_response(resp)
 
+
 router.zenpack = ZenPackRouter()
+
 
 class DeviceRouter(object):
 
     url_path = "device_router"
 
-    def addDevice(self, deviceName, deviceClass, title=None, snmpCommunity='', snmpPort=161, model=False, collector='localhost', rackSlot=0, locationPath='', systemPaths=[], groupPaths=[], productionState=1000, comments='', hwManufacturer='', hwProductName='', osManufacturer='', osProductName='', priority=3, tag='', serialNumber=''):
+    def addDevice(
+        self,
+        deviceName,
+        deviceClass,
+        title=None,
+        snmpCommunity="",
+        snmpPort=161,
+        model=False,
+        collector="localhost",
+        rackSlot=0,
+        locationPath="",
+        systemPaths=[],
+        groupPaths=[],
+        productionState=1000,
+        comments="",
+        hwManufacturer="",
+        hwProductName="",
+        osManufacturer="",
+        osProductName="",
+        priority=3,
+        tag="",
+        serialNumber="",
+    ):
         """
-        
+
         Add a device.
 
         @type  deviceName: string
@@ -242,16 +313,18 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - jobId: (string) ID of the add device job
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "addDevice", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "addDevice", [data]
+        )
         return create_response(resp)
 
     def addLocalTemplate(self, deviceUid, templateId):
         """
-        
+
         Adds a local template on a device.
 
         @type  deviceUid: string
@@ -260,16 +333,20 @@ class DeviceRouter(object):
         @param templateId: Name of the new template
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "addLocalTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "addLocalTemplate", [data]
+        )
         return create_response(resp)
 
-    def addLocationNode(self, type, contextUid, id, description=None, address=None):
+    def addLocationNode(
+        self, type, contextUid, id, description=None, address=None
+    ):
         """
-        
+
         Adds a new location organizer specified by the parameter id to
         the parent organizer specified by contextUid.
 
@@ -290,16 +367,18 @@ class DeviceRouter(object):
         @return:  B{Properties}:
            - success: (bool) Success of node creation
            - nodeConfig: (dictionary) The new location's properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "addLocationNode", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "addLocationNode", [data]
+        )
         return create_response(resp)
 
     def addNode(self, type, contextUid, id, description=None):
         """
-        
+
         Add a node to the existing tree underneath the node specified
         by the context UID
 
@@ -315,16 +394,18 @@ class DeviceRouter(object):
         @param description: (optional) Describes this new node (default: None)
         @rtype:   dictionary
         @return:  Marshaled form of the created node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "addNode", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -336,16 +417,18 @@ class DeviceRouter(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def bindOrUnbindTemplate(self, uid, templateUid):
         """
-        
+
         Bind an unbound template or unbind a bound template from a device.
 
         @type  uid: string
@@ -354,30 +437,47 @@ class DeviceRouter(object):
         @param templateUid: Template uid to bind/unbind
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "bindOrUnbindTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "bindOrUnbindTemplate", [data]
+        )
         return create_response(resp)
 
     def clearGeocodeCache(self):
         """
-        
+
         Clear the Google Maps geocode cache.
 
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "clearGeocodeCache", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "clearGeocodeCache", [data]
+        )
         return create_response(resp)
 
-    def deleteComponents(self, uids, hashcheck, uid=None, ranges=(), meta_type=None, keys=None, start=0, limit=50, sort='name', dir='ASC', name=None):
+    def deleteComponents(
+        self,
+        uids,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        meta_type=None,
+        keys=None,
+        start=0,
+        limit=50,
+        sort="name",
+        dir="ASC",
+        name=None,
+    ):
         """
-        
+
         Delete device component(s).
 
         @type  uids: [string]
@@ -412,16 +512,18 @@ class DeviceRouter(object):
                      (default: None)
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "deleteComponents", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "deleteComponents", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Deletes a node from the tree.
 
         B{NOTE}: You can not delete a root node of a tree
@@ -431,32 +533,45 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - msg: (string) Status message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def deleteZenProperty(*args, **kwargs):
         """
-        
+
         Removes the local instance of the each property in properties. Note
         that the property will only be deleted if a hasProperty is true
         @type  uid: String
         @param uid: unique identifier of an object
         @type  zProperty: String
         @param zProperty: zenproperty identifier
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "deleteZenProperty", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "deleteZenProperty", [data]
+        )
         return create_response(resp)
 
-    def findComponentIndex(self, componentUid, uid=None, meta_type=None, sort='name', dir='ASC', name=None, **kwargs):
+    def findComponentIndex(
+        self,
+        componentUid,
+        uid=None,
+        meta_type=None,
+        sort="name",
+        dir="ASC",
+        name=None,
+        **kwargs,
+    ):
         """
-        
+
         Given a component uid and the component search criteria, this retrieves
         the position of the component in the results.
 
@@ -479,16 +594,18 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - index: (integer) Index of the component
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "findComponentIndex", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "findComponentIndex", [data]
+        )
         return create_response(resp)
 
     def getBoundTemplates(self, uid):
         """
-        
+
         Get a list of bound templates for a device.
 
         @type  uid: string
@@ -496,30 +613,34 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing templates
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getBoundTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getBoundTemplates", [data]
+        )
         return create_response(resp)
 
     def getCollectors(self):
         """
-        
+
         Get a list of available collectors.
 
         @rtype:   [string]
         @return:  List of collectors
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getCollectors", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getCollectors", [data]
+        )
         return create_response(resp)
 
     def getComponentTree(self, uid=None, id=None):
         """
-        
+
         Retrieves all of the components set up to be used in a
         tree.
 
@@ -529,16 +650,28 @@ class DeviceRouter(object):
         @param id: not used
         @rtype:   [dictionary]
         @return:  Component properties in tree form
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getComponentTree", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getComponentTree", [data]
+        )
         return create_response(resp)
 
-    def getComponents(self, uid=None, meta_type=None, keys=None, start=0, limit=50, sort='name', dir='ASC', name=None):
+    def getComponents(
+        self,
+        uid=None,
+        meta_type=None,
+        keys=None,
+        start=0,
+        limit=50,
+        sort="name",
+        dir="ASC",
+        name=None,
+    ):
         """
-        
+
         Retrieves all of the components at a given UID. This method
         allows for pagination.
 
@@ -572,43 +705,58 @@ class DeviceRouter(object):
            - totalCount: (integer) Number of items returned
            - hash: (string) Hashcheck of the current component state (to check
            whether components have changed since last query)
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getComponents", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getComponents", [data]
+        )
         return create_response(resp)
 
     def getDeviceClasses(self, **data):
         """
-        
+
         Get a list of all device classes.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - deviceClasses: ([dictionary]) List of device classes
              - totalCount: (integer) Total number of device classes
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getDeviceClasses", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getDeviceClasses", [data]
+        )
         return create_response(resp)
 
-    def getDeviceUuidsByName(self, query=''):
+    def getDeviceUuidsByName(self, query=""):
         """
-        
+
         Retrieves a list of device uuids. For use in combos.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getDeviceUuidsByName", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getDeviceUuidsByName", [data]
+        )
         return create_response(resp)
 
-    def getDevices(self, uid=None, start=0, params={}, limit=50, sort='titleOrId', dir='ASC', keys=None):
+    def getDevices(
+        self,
+        uid=None,
+        start=0,
+        params={},
+        limit=50,
+        sort="titleOrId",
+        dir="ASC",
+        keys=None,
+    ):
         """
-        
+
         Retrieves a list of devices. This method supports pagination.
 
         @type  uid: string
@@ -635,16 +783,18 @@ class DeviceRouter(object):
              - totalCount: (integer) Number of devices returned
              - hash: (string) Hashcheck of the current device state (to check
              whether devices have changed since last query)
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getDevices", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getDevices", [data]
+        )
         return create_response(resp)
 
     def getEvents(self, uid):
         """
-        
+
         Get events for a device.
 
         @type  uid: [string]
@@ -652,16 +802,18 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of events for a device
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getEvents", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getEvents", [data]
+        )
         return create_response(resp)
 
     def getForm(self, uid):
         """
-        
+
         Given an object identifier, this returns all of the editable fields
         on that object as well as their ExtJs xtype that one would
         use on a client side form.
@@ -671,46 +823,52 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}
            - form: (dictionary) form fields for the object
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getForm", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getForm", [data]
+        )
         return create_response(resp)
 
     def getGraphDefs(self, uid, drange=None):
         """
-        
+
         Returns the url and title for each graph
         for the object passed in.
         @type  uid: string
         @param uid: unique identifier of an object
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getGraphDefs", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getGraphDefs", [data]
+        )
         return create_response(resp)
 
     def getGroups(self, **data):
         """
-        
+
         Get a list of all groups.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - systems: ([dictionary]) List of groups
              - totalCount: (integer) Total number of groups
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getGroups", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getGroups", [data]
+        )
         return create_response(resp)
 
-    def getHardwareProductNames(self, manufacturer='', **data):
+    def getHardwareProductNames(self, manufacturer="", **data):
         """
-        
+
         Get a list of all hardware product names from a manufacturer.
 
         @type  manufacturer: string
@@ -719,16 +877,18 @@ class DeviceRouter(object):
         @return:  B{Properties}:
              - productNames: ([dictionary]) List of hardware product names
              - totalCount: (integer) Total number of hardware product names
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getHardwareProductNames", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getHardwareProductNames", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid, keys=None):
         """
-        
+
         Get the properties of a device or device organizer
 
         @type  uid: string
@@ -741,16 +901,18 @@ class DeviceRouter(object):
         @return:  B{Properties}
             - data: (dictionary) Object properties
             - disabled: (bool) If current user doesn't have permission to use setInfo
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getInfo", [data]
+        )
         return create_response(resp)
 
     def getLocalTemplates(self, query, uid):
         """
-        
+
         Get a list of locally defined templates on a device.
 
         @type  query: string
@@ -760,59 +922,67 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing local templates
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getLocalTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getLocalTemplates", [data]
+        )
         return create_response(resp)
 
     def getLocations(self, **data):
         """
-        
+
         Get a list of all locations.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - systems: ([dictionary]) List of locations
              - totalCount: (integer) Total number of locations
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getLocations", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getLocations", [data]
+        )
         return create_response(resp)
 
     def getManufacturerNames(self, **data):
         """
-        
+
         Get a list of all manufacturer names.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - manufacturers: ([dictionary]) List of manufacturer names
              - totalCount: (integer) Total number of manufacturer names
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getManufacturerNames", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getManufacturerNames", [data]
+        )
         return create_response(resp)
 
     def getModelerPluginDocStrings(self, uid):
         """
-        
+
         Given a uid returns the documentation for all the modeler plugins.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getModelerPluginDocStrings", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getModelerPluginDocStrings", [data]
+        )
         return create_response(resp)
 
-    def getOSProductNames(self, manufacturer='', **data):
+    def getOSProductNames(self, manufacturer="", **data):
         """
-        
+
         Get a list of all OS product names from a manufacturer.
 
         @type  manufacturer: string
@@ -821,16 +991,18 @@ class DeviceRouter(object):
         @return:  B{Properties}:
              - productNames: ([dictionary]) List of OS product names
              - totalCount: (integer) Total number of OS product names
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getOSProductNames", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getOSProductNames", [data]
+        )
         return create_response(resp)
 
     def getOverridableTemplates(self, query, uid):
         """
-        
+
         Get a list of available templates on a device that can be overridden.
 
         @type  query: string
@@ -840,60 +1012,68 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing templates
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getOverridableTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getOverridableTemplates", [data]
+        )
         return create_response(resp)
 
     def getPriorities(self, **kwargs):
         """
-        
+
         Get a list of available device priorities.
 
         @rtype:   [dictionary]
         @return:  List of name/value pairs of available device priorities
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getPriorities", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getPriorities", [data]
+        )
         return create_response(resp)
 
     def getProductionStates(self, **kwargs):
         """
-        
+
         Get a list of available production states.
 
         @rtype:   [dictionary]
         @return:  List of name/value pairs of available production states
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getProductionStates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getProductionStates", [data]
+        )
         return create_response(resp)
 
     def getSystems(self, **data):
         """
-        
+
         Get a list of all systems.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - systems: ([dictionary]) List of systems
              - totalCount: (integer) Total number of systems
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getSystems", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getSystems", [data]
+        )
         return create_response(resp)
 
     def getTemplates(self, id):
         """
-        
+
         Get a list of available templates for a device.
 
         @type  id: string
@@ -901,16 +1081,18 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing templates
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getTemplates", [data]
+        )
         return create_response(resp)
 
     def getTree(self, id):
         """
-        
+
         Returns the tree structure of an organizer hierarchy where
         the root node is the organizer identified by the id parameter.
 
@@ -918,16 +1100,18 @@ class DeviceRouter(object):
         @param id: Id of the root node of the tree to be returned
         @rtype:   [dictionary]
         @return:  Object representing the tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getTree", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getTree", [data]
+        )
         return create_response(resp)
 
     def getUnboundTemplates(self, uid):
         """
-        
+
         Get a list of unbound templates for a device.
 
         @type  uid: string
@@ -935,46 +1119,54 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing templates
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getUnboundTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getUnboundTemplates", [data]
+        )
         return create_response(resp)
 
     def getUserCommands(self, uid):
         """
-        
+
         Get a list of user commands for a device uid.
 
         @type  uid: string
         @param uid: Device to use to get user commands
         @rtype:   [dictionary]
         @return:  List of objects representing user commands
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getUserCommands", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getUserCommands", [data]
+        )
         return create_response(resp)
 
-    def getZenProperties(self, uid, start=0, params='{}', limit=None, sort=None, dir='ASC'):
+    def getZenProperties(
+        self, uid, start=0, params="{}", limit=None, sort=None, dir="ASC"
+    ):
         """
-        
+
         Returns the definition and values of all
         the zen properties for this context
         @type  uid: string
         @param uid: unique identifier of an object
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getZenProperties", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getZenProperties", [data]
+        )
         return create_response(resp)
 
     def getZenProperty(self, uid, zProperty):
         """
-        
+
         Returns information about a zproperty for a
         given context, including its value
         @rtype:   Dictionary
@@ -984,16 +1176,30 @@ class DeviceRouter(object):
              - options: (Array) available options for the zproperty
              - value (Array) value of the zproperty
              - valueAsString (string)
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "getZenProperty", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "getZenProperty", [data]
+        )
         return create_response(resp)
 
-    def loadComponentRanges(self, ranges, hashcheck, uid=None, types=(), meta_type=(), start=0, limit=None, sort='name', dir='ASC', name=None):
+    def loadComponentRanges(
+        self,
+        ranges,
+        hashcheck,
+        uid=None,
+        types=(),
+        meta_type=(),
+        start=0,
+        limit=None,
+        sort="name",
+        dir="ASC",
+        name=None,
+    ):
         """
-        
+
         Get a range of component uids.
 
         @type  ranges: [integer]
@@ -1025,16 +1231,20 @@ class DeviceRouter(object):
                      (default: None)
         @rtype:   [string]
         @return:  A list of component uids
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "loadComponentRanges", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "loadComponentRanges", [data]
+        )
         return create_response(resp)
 
-    def loadRanges(self, ranges, hashcheck, uid=None, params=None, sort='name', dir='ASC'):
+    def loadRanges(
+        self, ranges, hashcheck, uid=None, params=None, sort="name", dir="ASC"
+    ):
         """
-        
+
         Get a range of device uids.
 
         @type  ranges: [integer]
@@ -1056,16 +1266,34 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   [string]
         @return:  A list of device uids
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "loadRanges", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "loadRanges", [data]
+        )
         return create_response(resp)
 
-    def lockComponents(self, uids, hashcheck, uid=None, ranges=(), updates=False, deletion=False, sendEvent=False, meta_type=None, keys=None, start=0, limit=50, sort='name', dir='ASC', name=None):
+    def lockComponents(
+        self,
+        uids,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        updates=False,
+        deletion=False,
+        sendEvent=False,
+        meta_type=None,
+        keys=None,
+        start=0,
+        limit=50,
+        sort="name",
+        dir="ASC",
+        name=None,
+    ):
         """
-        
+
         Lock component(s) from changes.
 
         @type  uids: [string]
@@ -1108,16 +1336,30 @@ class DeviceRouter(object):
                      (default: None)
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "lockComponents", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "lockComponents", [data]
+        )
         return create_response(resp)
 
-    def lockDevices(self, uids, hashcheck, ranges=(), updates=False, deletion=False, sendEvent=False, uid=None, params=None, sort='name', dir='ASC'):
+    def lockDevices(
+        self,
+        uids,
+        hashcheck,
+        ranges=(),
+        updates=False,
+        deletion=False,
+        sendEvent=False,
+        uid=None,
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Lock device(s) from changes.
 
         @type  uids: [string]
@@ -1150,16 +1392,28 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "lockDevices", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "lockDevices", [data]
+        )
         return create_response(resp)
 
-    def moveDevices(self, uids, target, hashcheck, ranges=(), uid=None, params=None, sort='name', dir='ASC'):
+    def moveDevices(
+        self,
+        uids,
+        target,
+        hashcheck,
+        ranges=(),
+        uid=None,
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Moves the devices specified by uids to the organizer specified by 'target'.
 
         @type  uids: [string]
@@ -1188,16 +1442,18 @@ class DeviceRouter(object):
         @return:  B{Properties}:
              - tree: ([dictionary]) Object representing the new device tree
              - exports: (integer) Number of devices moved
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "moveDevices", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "moveDevices", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -1208,16 +1464,27 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
-    def pushChanges(self, uids, hashcheck, ranges=(), uid=None, params=None, sort='name', dir='ASC'):
+    def pushChanges(
+        self,
+        uids,
+        hashcheck,
+        ranges=(),
+        uid=None,
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Push changes on device(s) configuration to collectors.
 
         @type  uids: [string]
@@ -1242,16 +1509,18 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "pushChanges", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "pushChanges", [data]
+        )
         return create_response(resp)
 
     def remodel(self, deviceUid):
         """
-        
+
         Submit a job to have a device remodeled.
 
         @type  deviceUid: string
@@ -1259,16 +1528,30 @@ class DeviceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - jobId: (string) ID of the add device job
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "remodel", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "remodel", [data]
+        )
         return create_response(resp)
 
-    def removeDevices(self, uids, hashcheck, action='remove', uid=None, ranges=(), params=None, sort='name', dir='ASC', deleteEvents=False, deletePerf=False):
+    def removeDevices(
+        self,
+        uids,
+        hashcheck,
+        action="remove",
+        uid=None,
+        ranges=(),
+        params=None,
+        sort="name",
+        dir="ASC",
+        deleteEvents=False,
+        deletePerf=False,
+    ):
         """
-        
+
         Remove/delete device(s).
 
         @type  uids: [string]
@@ -1304,16 +1587,18 @@ class DeviceRouter(object):
              - grptree: ([dictionary]) Object representing the new group tree
              - systree: ([dictionary]) Object representing the new system tree
              - loctree: ([dictionary]) Object representing the new location tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "removeDevices", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "removeDevices", [data]
+        )
         return create_response(resp)
 
     def removeLocalTemplate(self, deviceUid, templateUid):
         """
-        
+
         Removes a locally defined template on a device.
 
         @type  deviceUid: string
@@ -1322,32 +1607,45 @@ class DeviceRouter(object):
         @param templateUid: Name of the template to remove
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "removeLocalTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "removeLocalTemplate", [data]
+        )
         return create_response(resp)
 
     def resetBoundTemplates(self, uid):
         """
-        
+
         Remove all bound templates from a device.
 
         @type  uid: string
         @param uid: Device uid to remove bound templates from
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "resetBoundTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "resetBoundTemplates", [data]
+        )
         return create_response(resp)
 
-    def resetCommunity(self, uids, hashcheck, uid=None, ranges=(), params=None, sort='name', dir='ASC'):
+    def resetCommunity(
+        self,
+        uids,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Reset SNMP community string(s) on device(s)
 
         @type  uids: [string]
@@ -1372,16 +1670,28 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "resetCommunity", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "resetCommunity", [data]
+        )
         return create_response(resp)
 
-    def resetIp(self, uids, hashcheck, uid=None, ranges=(), params=None, sort='name', dir='ASC', ip=''):
+    def resetIp(
+        self,
+        uids,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        params=None,
+        sort="name",
+        dir="ASC",
+        ip="",
+    ):
         """
-        
+
         Reset IP address(es) of device(s) to the results of a DNS lookup or
         a manually set address
 
@@ -1410,16 +1720,18 @@ class DeviceRouter(object):
                    lookup (default: '')
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "resetIp", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "resetIp", [data]
+        )
         return create_response(resp)
 
     def setBoundTemplates(self, uid, templateIds):
         """
-        
+
         Set a list of templates as bound to a device.
 
         @type  uid: string
@@ -1428,16 +1740,28 @@ class DeviceRouter(object):
         @param templateIds: List of template uids to bind to device
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setBoundTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setBoundTemplates", [data]
+        )
         return create_response(resp)
 
-    def setCollector(self, uids, collector, hashcheck, uid=None, ranges=(), params=None, sort='name', dir='ASC'):
+    def setCollector(
+        self,
+        uids,
+        collector,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Set device(s) collector.
 
         @type  uids: [string]
@@ -1464,16 +1788,32 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setCollector", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setCollector", [data]
+        )
         return create_response(resp)
 
-    def setComponentsMonitored(self, uids, hashcheck, monitor=False, uid=None, ranges=(), meta_type=None, keys=None, start=0, limit=50, sort='name', dir='ASC', name=None):
+    def setComponentsMonitored(
+        self,
+        uids,
+        hashcheck,
+        monitor=False,
+        uid=None,
+        ranges=(),
+        meta_type=None,
+        keys=None,
+        start=0,
+        limit=50,
+        sort="name",
+        dir="ASC",
+        name=None,
+    ):
         """
-        
+
         Set the monitoring flag for component(s)
 
         @type  uids: [string]
@@ -1510,16 +1850,18 @@ class DeviceRouter(object):
                      (default: None)
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setComponentsMonitored", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setComponentsMonitored", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Set attributes on a device or device organizer.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -1527,16 +1869,28 @@ class DeviceRouter(object):
         @type    uid: string
         @keyword uid: Unique identifier of an object
         @rtype: DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setInfo", [data]
+        )
         return create_response(resp)
 
-    def setPriority(self, uids, priority, hashcheck, uid=None, ranges=(), params=None, sort='name', dir='ASC'):
+    def setPriority(
+        self,
+        uids,
+        priority,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Set device(s) priority.
 
         @type  uids: [string]
@@ -1563,16 +1917,18 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setPriority", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setPriority", [data]
+        )
         return create_response(resp)
 
     def setProductInfo(self, uid, **data):
         """
-        
+
         Sets the ProductInfo on a device. This method has the following valid
         keyword arguments:
 
@@ -1587,16 +1943,28 @@ class DeviceRouter(object):
         @type    osProductName: string
         @keyword osProductName: Operating system product name
         @rtype:  DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setProductInfo", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setProductInfo", [data]
+        )
         return create_response(resp)
 
-    def setProductionState(self, uids, prodState, hashcheck, uid=None, ranges=(), params=None, sort='name', dir='ASC'):
+    def setProductionState(
+        self,
+        uids,
+        prodState,
+        hashcheck,
+        uid=None,
+        ranges=(),
+        params=None,
+        sort="name",
+        dir="ASC",
+    ):
         """
-        
+
         Set the production state of device(s).
 
         @type  uids: [string]
@@ -1623,25 +1991,31 @@ class DeviceRouter(object):
                     (default: 'ASC')
         @rtype:   DirectResponse
         @return:  Success or failure message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setProductionState", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setProductionState", [data]
+        )
         return create_response(resp)
 
     def setZenProperty(*args, **kwargs):
         """
-        
+
         Sets the zProperty value
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DeviceRouter", "setZenProperty", [data])
+        resp = client.make_request(
+            self.url_path, "DeviceRouter", "setZenProperty", [data]
+        )
         return create_response(resp)
 
+
 router.device = DeviceRouter()
+
 
 class ServiceRouter(object):
 
@@ -1649,7 +2023,7 @@ class ServiceRouter(object):
 
     def addClass(self, contextUid, id, posQuery=None):
         """
-        
+
         Add a new service class.
 
         @type  contextUid: string
@@ -1662,16 +2036,18 @@ class ServiceRouter(object):
         @return:  B{Properties}:
              - newIndex: (integer) Index of the newly added class in the query
              defined by posQuery
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "addClass", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "addClass", [data]
+        )
         return create_response(resp)
 
     def addNode(self, type, contextUid, id, description=None):
         """
-        
+
         Add a node to the existing tree underneath the node specified
         by the context UID
 
@@ -1687,16 +2063,18 @@ class ServiceRouter(object):
         @param description: (optional) Describes this new node (default: None)
         @rtype:   dictionary
         @return:  Marshaled form of the created node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "addNode", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -1708,16 +2086,18 @@ class ServiceRouter(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Deletes a node from the tree.
 
         B{NOTE}: You can not delete a root node of a tree
@@ -1727,11 +2107,13 @@ class ServiceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - msg: (string) Status message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def getClassNames(self, uid=None, query=None):
@@ -1740,12 +2122,14 @@ class ServiceRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getClassNames", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getClassNames", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid, keys=None):
         """
-        
+
         Get the properties of a service.
 
         @type  uid: string
@@ -1758,16 +2142,20 @@ class ServiceRouter(object):
         @return:  B{Properties}
             - data: (dictionary) Object representing a service's properties
             - disabled: (boolean) True if current user cannot manage services
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getInfo", [data]
+        )
         return create_response(resp)
 
-    def getInstances(self, uid, start=0, params=None, limit=50, sort='name', dir='ASC'):
+    def getInstances(
+        self, uid, start=0, params=None, limit=50, sort="name", dir="ASC"
+    ):
         """
-        
+
         Get a list of instances for a service UID.
 
         @type  uid: string
@@ -1790,16 +2178,18 @@ class ServiceRouter(object):
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing service instances
              - totalCount: (integer) Total number of instances
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getInstances", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getInstances", [data]
+        )
         return create_response(resp)
 
     def getMonitoredStartModes(self, uid):
         """
-        
+
         Get a list of monitored start modes for a Windows service.
 
         @type  uid: string
@@ -1807,16 +2197,18 @@ class ServiceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
             - data: ([string]) List of monitored start modes for a Windows service
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getMonitoredStartModes", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getMonitoredStartModes", [data]
+        )
         return create_response(resp)
 
     def getOrganizerTree(self, id):
         """
-        
+
         Returns the tree structure of an organizer hierarchy, only including
         organizers.
 
@@ -1824,32 +2216,36 @@ class ServiceRouter(object):
         @param id: Id of the root node of the tree to be returned
         @rtype:   [dictionary]
         @return:  Object representing the organizer tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getOrganizerTree", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getOrganizerTree", [data]
+        )
         return create_response(resp)
 
     def getTree(self, id):
         """
-        
+
         Returns the tree structure of an organizer hierarchy.
 
         @type  id: string
         @param id: Id of the root node of the tree to be returned
         @rtype:   [dictionary]
         @return:  Object representing the tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getTree", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getTree", [data]
+        )
         return create_response(resp)
 
     def getUnmonitoredStartModes(self, uid):
         """
-        
+
         Get a list of unmonitored start modes for a Windows service.
 
         @type  uid: string
@@ -1857,16 +2253,18 @@ class ServiceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
             - data: ([string]) List of unmonitored start modes for a Windows service
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "getUnmonitoredStartModes", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "getUnmonitoredStartModes", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -1877,16 +2275,18 @@ class ServiceRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
     def moveServices(self, sourceUids, targetUid):
         """
-        
+
         Move service(s) from one organizer to another.
 
         @type  sourceUids: [string]
@@ -1895,16 +2295,28 @@ class ServiceRouter(object):
         @param targetUid: UID of the organizer to move to
         @rtype:   DirectResponse
         @return:  Success messsage
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "moveServices", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "moveServices", [data]
+        )
         return create_response(resp)
 
-    def query(self, limit=None, start=None, sort=None, dir=None, params=None, history=False, uid=None, criteria=()):
+    def query(
+        self,
+        limit=None,
+        start=None,
+        sort=None,
+        dir=None,
+        params=None,
+        history=False,
+        uid=None,
+        criteria=(),
+    ):
         """
-        
+
         Retrieve a list of services based on a set of parameters.
 
         @type  limit: integer
@@ -1933,16 +2345,18 @@ class ServiceRouter(object):
              - totalCount: (integer) Total number of services
              - hash: (string) Hashcheck of the current services state
              - disabled: (boolean) True if current user cannot manage services
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "query", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "query", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Set attributes on a service.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -1951,22 +2365,26 @@ class ServiceRouter(object):
         @keyword uid: Unique identifier of a service
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ServiceRouter", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "ServiceRouter", "setInfo", [data]
+        )
         return create_response(resp)
 
+
 router.service = ServiceRouter()
+
 
 class MibRouter(object):
 
     url_path = "mib_router"
 
-    def addMIB(self, package, organizer='/'):
+    def addMIB(self, package, organizer="/"):
         """
-        
+
         Add a new MIB by URL or local file.
 
         @type  package: string
@@ -1976,16 +2394,16 @@ class MibRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - jobId: (string) ID of the add MIB job
-        
+
         """
         data = locals().copy()
         del data["self"]
         resp = client.make_request(self.url_path, "MibRouter", "addMIB", [data])
         return create_response(resp)
 
-    def addNode(self, contextUid='', id='', type=''):
+    def addNode(self, contextUid="", id="", type=""):
         """
-        
+
         Add an organizer or new blank MIB.
 
         @type  contextUid: string
@@ -1997,34 +2415,40 @@ class MibRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - tree: ([dictionary]) Object representing the new tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "addNode", [data]
+        )
         return create_response(resp)
 
-    def addOidMapping(self, uid, id, oid, nodetype='node'):
+    def addOidMapping(self, uid, id, oid, nodetype="node"):
         """
         None
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "addOidMapping", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "addOidMapping", [data]
+        )
         return create_response(resp)
 
-    def addTrap(self, uid, id, oid, nodetype='notification'):
+    def addTrap(self, uid, id, oid, nodetype="notification"):
         """
         None
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "addTrap", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "addTrap", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -2036,16 +2460,18 @@ class MibRouter(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Remove an organizer or MIB.
 
         @type  uid: string
@@ -2053,11 +2479,13 @@ class MibRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - tree: ([dictionary]) Object representing the new tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def deleteOidMapping(self, uid):
@@ -2066,7 +2494,9 @@ class MibRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "deleteOidMapping", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "deleteOidMapping", [data]
+        )
         return create_response(resp)
 
     def deleteTrap(self, uid):
@@ -2075,12 +2505,14 @@ class MibRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "deleteTrap", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "deleteTrap", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid, useFieldSets=True):
         """
-        
+
         Get the properties of a MIB
 
         @type  uid: string
@@ -2093,47 +2525,55 @@ class MibRouter(object):
             - data: (dictionary) Object representing a MIB's properties
             - form: (dictionary) Object representing an edit form for a MIB's
                     properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getInfo", [data]
+        )
         return create_response(resp)
 
     def getMibNodeTree(self, id=None):
         """
-        
+
         A MIB node is a regular OID (ie you can hit it with snmpwalk)
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getMibNodeTree", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getMibNodeTree", [data]
+        )
         return create_response(resp)
 
     def getMibTrapTree(self, id=None):
         """
-        
+
         A MIB trap node is an OID received from a trap
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getMibTrapTree", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getMibTrapTree", [data]
+        )
         return create_response(resp)
 
-    def getOidMappings(self, uid, dir='ASC', sort='name', start=0, limit=256):
+    def getOidMappings(self, uid, dir="ASC", sort="name", start=0, limit=256):
         """
         None
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getOidMappings", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getOidMappings", [data]
+        )
         return create_response(resp)
 
     def getOrganizerTree(self, id):
         """
-        
+
         Returns the tree structure of an organizer hierarchy, only including
         organizers.
 
@@ -2141,25 +2581,29 @@ class MibRouter(object):
         @param id: Id of the root node of the tree to be returned
         @rtype:   [dictionary]
         @return:  Object representing the organizer tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getOrganizerTree", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getOrganizerTree", [data]
+        )
         return create_response(resp)
 
-    def getTraps(self, uid, dir='ASC', sort='name', start=0, limit=256):
+    def getTraps(self, uid, dir="ASC", sort="name", start=0, limit=256):
         """
         None
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getTraps", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getTraps", [data]
+        )
         return create_response(resp)
 
-    def getTree(self, id='/zport/dmd/Mibs'):
+    def getTree(self, id="/zport/dmd/Mibs"):
         """
-        
+
         Returns the tree structure of an organizer hierarchy. Default tree
         root is MIBs.
 
@@ -2168,16 +2612,18 @@ class MibRouter(object):
                    returned (default: '/zport/dmd/Mibs')
         @rtype:   [dictionary]
         @return:  Object representing the tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "getTree", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "getTree", [data]
+        )
         return create_response(resp)
 
     def moveNode(self, uids, target):
         """
-        
+
         Move an organizer or MIB from one organizer to another.
 
         @type  uids: [string]
@@ -2187,16 +2633,18 @@ class MibRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - data: (dictionary) Object representing the new parent organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "moveNode", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "moveNode", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -2207,16 +2655,18 @@ class MibRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Set attributes on a MIB.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -2226,14 +2676,18 @@ class MibRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}
             - data: (dictionary) Object representing a MIB's new properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MibRouter", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "MibRouter", "setInfo", [data]
+        )
         return create_response(resp)
 
+
 router.mib = MibRouter()
+
 
 class Network6Router(object):
 
@@ -2241,7 +2695,7 @@ class Network6Router(object):
 
     def addNode(self, newSubnet, contextUid):
         """
-        
+
         Add a new subnet.
 
         @type  newSubnet: string
@@ -2251,16 +2705,18 @@ class Network6Router(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - newNode: (dictionary) An object representing the new subnet node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "addNode", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -2272,16 +2728,18 @@ class Network6Router(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Delete a subnet.
 
         @type  uid: string
@@ -2289,16 +2747,18 @@ class Network6Router(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - tree: (dictionary) An object representing the new network tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def discoverDevices(self, uid):
         """
-        
+
         Discover devices on a network.
 
         @type  uid: string
@@ -2306,16 +2766,18 @@ class Network6Router(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - jobId: (integer) The id of the discovery job
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "discoverDevices", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "discoverDevices", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid, keys=None):
         """
-        
+
         Returns a dictionary of the properties of an object
 
         @type  uid: string
@@ -2326,16 +2788,26 @@ class Network6Router(object):
         @rtype:   DirectResponse
         @return:  B{Properties}
             - data: (dictionary) Object properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "getInfo", [data]
+        )
         return create_response(resp)
 
-    def getIpAddresses(self, uid, start=0, params=None, limit=50, sort='ipAddressAsInt', dir='ASC'):
+    def getIpAddresses(
+        self,
+        uid,
+        start=0,
+        params=None,
+        limit=50,
+        sort="ipAddressAsInt",
+        dir="ASC",
+    ):
         """
-        
+
         Given a subnet, get a list of IP addresses and their relations.
 
         @type  uid: string
@@ -2352,16 +2824,18 @@ class Network6Router(object):
         @type  dir: string
         @param dir: Sort order; can be either 'ASC' or 'DESC'
         @rtype: DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "getIpAddresses", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "getIpAddresses", [data]
+        )
         return create_response(resp)
 
-    def getTree(self, id='/zport/dmd/Networks'):
+    def getTree(self, id="/zport/dmd/Networks"):
         """
-        
+
         Returns the tree structure of an organizer hierarchy where
         the root node is the organizer identified by the id parameter.
 
@@ -2370,16 +2844,18 @@ class Network6Router(object):
                    the Networks tree root.
         @rtype:   [dictionary]
         @return:  Object representing the tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "getTree", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "getTree", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -2390,30 +2866,34 @@ class Network6Router(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
     def removeIpAddresses(self, uids=None):
         """
-        
+
         Removes every ip address specified by uids that are
         not attached to any device
         @type  uids: Array of Strings
         @param uids: unique identfiers of the ip addresses to delete
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "removeIpAddresses", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "removeIpAddresses", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Main method for setting attributes on a network or network organizer.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -2421,14 +2901,18 @@ class Network6Router(object):
         @type    uid: string
         @keyword uid: Unique identifier of an object
         @rtype: DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "Network6Router", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "Network6Router", "setInfo", [data]
+        )
         return create_response(resp)
 
+
 router.network6 = Network6Router()
+
 
 class SettingsRouter(object):
 
@@ -2436,27 +2920,33 @@ class SettingsRouter(object):
 
     def getUserInterfaceSettings(self):
         """
-        
+
         Retrieves the collection of User interface settings
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SettingsRouter", "getUserInterfaceSettings", [data])
+        resp = client.make_request(
+            self.url_path, "SettingsRouter", "getUserInterfaceSettings", [data]
+        )
         return create_response(resp)
 
     def setUserInterfaceSettings(self, **kwargs):
         """
-        
+
         Accepts key value pair of user interface settings.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SettingsRouter", "setUserInterfaceSettings", [data])
+        resp = client.make_request(
+            self.url_path, "SettingsRouter", "setUserInterfaceSettings", [data]
+        )
         return create_response(resp)
 
+
 router.settings = SettingsRouter()
+
 
 class MessagingRouter(object):
 
@@ -2464,45 +2954,53 @@ class MessagingRouter(object):
 
     def clearBrowserState(self, user=None):
         """
-        
+
         Removes all the stored state associated with the current user
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MessagingRouter", "clearBrowserState", [data])
+        resp = client.make_request(
+            self.url_path, "MessagingRouter", "clearBrowserState", [data]
+        )
         return create_response(resp)
 
     def getUserMessages(self):
         """
-        
+
         Get the queued messages for the logged in user.
 
         @rtype:   dictionary
         @return:  B{Properties}:
            - messages: ([string]) A list of queued messages.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MessagingRouter", "getUserMessages", [data])
+        resp = client.make_request(
+            self.url_path, "MessagingRouter", "getUserMessages", [data]
+        )
         return create_response(resp)
 
     def setBrowserState(self, state):
         """
-        
+
         Save the browser state for the current user.
 
         @param state: The browser state as a JSON-encoded string
         @type state: str
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "MessagingRouter", "setBrowserState", [data])
+        resp = client.make_request(
+            self.url_path, "MessagingRouter", "setBrowserState", [data]
+        )
         return create_response(resp)
 
+
 router.messaging = MessagingRouter()
+
 
 class TriggersRouter(object):
 
@@ -2514,7 +3012,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "addNotification", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "addNotification", [data]
+        )
         return create_response(resp)
 
     def addTrigger(self, newId):
@@ -2523,7 +3023,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "addTrigger", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "addTrigger", [data]
+        )
         return create_response(resp)
 
     def addWindow(self, contextUid, newId):
@@ -2532,7 +3034,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "addWindow", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "addWindow", [data]
+        )
         return create_response(resp)
 
     def getNotification(self, uid):
@@ -2541,7 +3045,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getNotification", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getNotification", [data]
+        )
         return create_response(resp)
 
     def getNotificationTypes(self):
@@ -2550,7 +3056,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getNotificationTypes", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getNotificationTypes", [data]
+        )
         return create_response(resp)
 
     def getNotifications(self):
@@ -2559,7 +3067,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getNotifications", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getNotifications", [data]
+        )
         return create_response(resp)
 
     def getRecipientOptions(self):
@@ -2568,7 +3078,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getRecipientOptions", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getRecipientOptions", [data]
+        )
         return create_response(resp)
 
     def getTrigger(self, uuid):
@@ -2577,7 +3089,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getTrigger", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getTrigger", [data]
+        )
         return create_response(resp)
 
     def getTriggerList(self, **unused):
@@ -2586,7 +3100,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getTriggerList", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getTriggerList", [data]
+        )
         return create_response(resp)
 
     def getTriggers(self, **kwargs):
@@ -2595,7 +3111,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getTriggers", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getTriggers", [data]
+        )
         return create_response(resp)
 
     def getWindow(self, uid):
@@ -2604,7 +3122,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getWindow", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getWindow", [data]
+        )
         return create_response(resp)
 
     def getWindows(self, uid):
@@ -2613,7 +3133,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "getWindows", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "getWindows", [data]
+        )
         return create_response(resp)
 
     def parseFilter(self, source):
@@ -2622,7 +3144,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "parseFilter", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "parseFilter", [data]
+        )
         return create_response(resp)
 
     def removeNotification(self, uid):
@@ -2631,7 +3155,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "removeNotification", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "removeNotification", [data]
+        )
         return create_response(resp)
 
     def removeTrigger(self, uuid):
@@ -2640,7 +3166,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "removeTrigger", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "removeTrigger", [data]
+        )
         return create_response(resp)
 
     def removeWindow(self, uid):
@@ -2649,7 +3177,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "removeWindow", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "removeWindow", [data]
+        )
         return create_response(resp)
 
     def updateNotification(self, **data):
@@ -2658,7 +3188,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "updateNotification", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "updateNotification", [data]
+        )
         return create_response(resp)
 
     def updateTrigger(self, **data):
@@ -2667,7 +3199,9 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "updateTrigger", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "updateTrigger", [data]
+        )
         return create_response(resp)
 
     def updateWindow(self, **data):
@@ -2676,10 +3210,14 @@ class TriggersRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TriggersRouter", "updateWindow", [data])
+        resp = client.make_request(
+            self.url_path, "TriggersRouter", "updateWindow", [data]
+        )
         return create_response(resp)
 
+
 router.triggers = TriggersRouter()
+
 
 class ProcessRouter(object):
 
@@ -2687,7 +3225,7 @@ class ProcessRouter(object):
 
     def addNode(self, type, contextUid, id, description=None):
         """
-        
+
         Add a node to the existing tree underneath the node specified
         by the context UID
 
@@ -2703,16 +3241,18 @@ class ProcessRouter(object):
         @param description: (optional) Describes this new node (default: None)
         @rtype:   dictionary
         @return:  Marshaled form of the created node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "addNode", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -2724,16 +3264,18 @@ class ProcessRouter(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Deletes a node from the tree.
 
         B{NOTE}: You can not delete a root node of a tree
@@ -2743,16 +3285,18 @@ class ProcessRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - msg: (string) Status message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid, keys=None):
         """
-        
+
         Get the properties of a process.
 
         @type  uid: string
@@ -2764,16 +3308,20 @@ class ProcessRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}
             - data: (dictionary) Object representing a process's properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "getInfo", [data]
+        )
         return create_response(resp)
 
-    def getInstances(self, uid, start=0, params=None, limit=50, sort='name', dir='ASC'):
+    def getInstances(
+        self, uid, start=0, params=None, limit=50, sort="name", dir="ASC"
+    ):
         """
-        
+
         Get a list of instances for a process UID.
 
         @type  uid: string
@@ -2796,32 +3344,36 @@ class ProcessRouter(object):
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing process instances
              - total: (integer) Total number of instances
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "getInstances", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "getInstances", [data]
+        )
         return create_response(resp)
 
     def getSequence(self):
         """
-        
+
         Get the current processes sequence.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing processes in
              sequence order
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "getSequence", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "getSequence", [data]
+        )
         return create_response(resp)
 
     def getTree(self, id):
         """
-        
+
         Returns the tree structure of an organizer hierarchy where
         the root node is the organizer identified by the id parameter.
 
@@ -2829,16 +3381,18 @@ class ProcessRouter(object):
         @param id: Id of the root node of the tree to be returned
         @rtype:   [dictionary]
         @return:  Object representing the tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "getTree", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "getTree", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -2849,16 +3403,18 @@ class ProcessRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
     def moveProcess(self, uid, targetUid):
         """
-        
+
         Move a process or organizer from one organizer to another.
 
         @type  uid: string
@@ -2868,16 +3424,28 @@ class ProcessRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - uid: (dictionary) The new uid for moved process or organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "moveProcess", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "moveProcess", [data]
+        )
         return create_response(resp)
 
-    def query(self, limit=None, start=None, sort=None, dir=None, params=None, history=False, uid=None, criteria=()):
+    def query(
+        self,
+        limit=None,
+        start=None,
+        sort=None,
+        dir=None,
+        params=None,
+        history=False,
+        uid=None,
+        criteria=(),
+    ):
         """
-        
+
         Retrieve a list of processes based on a set of parameters.
 
         @type  limit: integer
@@ -2906,16 +3474,18 @@ class ProcessRouter(object):
              - totalCount: (integer) Total number of processes
              - hash: (string) Hashcheck of the current processes state
              - disabled: (boolean) True if current user cannot manage processes
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "query", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "query", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Set attributes on a process.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -2925,30 +3495,36 @@ class ProcessRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}
             - data: (dictionary) Object representing a process's new properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "setInfo", [data]
+        )
         return create_response(resp)
 
     def setSequence(self, uids):
         """
-        
+
         Set the current processes sequence.
 
         @type  uids: [string]
         @param uids: The set of process uid's in the desired sequence
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ProcessRouter", "setSequence", [data])
+        resp = client.make_request(
+            self.url_path, "ProcessRouter", "setSequence", [data]
+        )
         return create_response(resp)
 
+
 router.process = ProcessRouter()
+
 
 class NetworkRouter(object):
 
@@ -2956,7 +3532,7 @@ class NetworkRouter(object):
 
     def addNode(self, newSubnet, contextUid):
         """
-        
+
         Add a new subnet.
 
         @type  newSubnet: string
@@ -2966,16 +3542,18 @@ class NetworkRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - newNode: (dictionary) An object representing the new subnet node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "addNode", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -2987,16 +3565,18 @@ class NetworkRouter(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Delete a subnet.
 
         @type  uid: string
@@ -3004,16 +3584,18 @@ class NetworkRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - tree: (dictionary) An object representing the new network tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def discoverDevices(self, uid):
         """
-        
+
         Discover devices on a network.
 
         @type  uid: string
@@ -3021,16 +3603,18 @@ class NetworkRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - jobId: (integer) The id of the discovery job
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "discoverDevices", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "discoverDevices", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid, keys=None):
         """
-        
+
         Returns a dictionary of the properties of an object
 
         @type  uid: string
@@ -3041,16 +3625,26 @@ class NetworkRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}
             - data: (dictionary) Object properties
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "getInfo", [data]
+        )
         return create_response(resp)
 
-    def getIpAddresses(self, uid, start=0, params=None, limit=50, sort='ipAddressAsInt', dir='ASC'):
+    def getIpAddresses(
+        self,
+        uid,
+        start=0,
+        params=None,
+        limit=50,
+        sort="ipAddressAsInt",
+        dir="ASC",
+    ):
         """
-        
+
         Given a subnet, get a list of IP addresses and their relations.
 
         @type  uid: string
@@ -3067,16 +3661,18 @@ class NetworkRouter(object):
         @type  dir: string
         @param dir: Sort order; can be either 'ASC' or 'DESC'
         @rtype: DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "getIpAddresses", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "getIpAddresses", [data]
+        )
         return create_response(resp)
 
-    def getTree(self, id='/zport/dmd/Networks'):
+    def getTree(self, id="/zport/dmd/Networks"):
         """
-        
+
         Returns the tree structure of an organizer hierarchy where
         the root node is the organizer identified by the id parameter.
 
@@ -3085,16 +3681,18 @@ class NetworkRouter(object):
                    the Networks tree root.
         @rtype:   [dictionary]
         @return:  Object representing the tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "getTree", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "getTree", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -3105,30 +3703,34 @@ class NetworkRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
     def removeIpAddresses(self, uids=None):
         """
-        
+
         Removes every ip address specified by uids that are
         not attached to any device
         @type  uids: Array of Strings
         @param uids: unique identfiers of the ip addresses to delete
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "removeIpAddresses", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "removeIpAddresses", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Main method for setting attributes on a network or network organizer.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -3136,14 +3738,18 @@ class NetworkRouter(object):
         @type    uid: string
         @keyword uid: Unique identifier of an object
         @rtype: DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "NetworkRouter", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "NetworkRouter", "setInfo", [data]
+        )
         return create_response(resp)
 
+
 router.network = NetworkRouter()
+
 
 class TemplateRouter(object):
 
@@ -3151,7 +3757,7 @@ class TemplateRouter(object):
 
     def addCustomToGraph(self, graphUid, customId, customType):
         """
-        
+
         Add a custom graph point to a graph definition.
 
         @type  graphUid: string
@@ -3162,16 +3768,18 @@ class TemplateRouter(object):
         @param customType: Type of the new graph point. From getGraphInstructionTypes()
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addCustomToGraph", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addCustomToGraph", [data]
+        )
         return create_response(resp)
 
     def addDataPoint(self, dataSourceUid, name):
         """
-        
+
         Add a new data point to a data source.
 
         @type  dataSourceUid: string
@@ -3180,16 +3788,20 @@ class TemplateRouter(object):
         @param name: ID of the new data point
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addDataPoint", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addDataPoint", [data]
+        )
         return create_response(resp)
 
-    def addDataPointToGraph(self, dataPointUid, graphUid, includeThresholds=False):
+    def addDataPointToGraph(
+        self, dataPointUid, graphUid, includeThresholds=False
+    ):
         """
-        
+
         Add a data point to a graph.
 
         @type  dataPointUid: string
@@ -3201,16 +3813,18 @@ class TemplateRouter(object):
                                   (default: False)
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addDataPointToGraph", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addDataPointToGraph", [data]
+        )
         return create_response(resp)
 
     def addDataSource(self, templateUid, name, type):
         """
-        
+
         Add a new data source to a template.
 
         @type  templateUid: string
@@ -3221,16 +3835,18 @@ class TemplateRouter(object):
         @param type: Type of the new data source. From getDataSourceTypes()
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addDataSource", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addDataSource", [data]
+        )
         return create_response(resp)
 
     def addGraphDefinition(self, templateUid, graphDefinitionId):
         """
-        
+
         Add a new graph definition to a template.
 
         @type  templateUid: string
@@ -3239,16 +3855,18 @@ class TemplateRouter(object):
         @param graphDefinitionId: ID of the new graph definition
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addGraphDefinition", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addGraphDefinition", [data]
+        )
         return create_response(resp)
 
     def addNode(self, type, contextUid, id, description=None):
         """
-        
+
         Add a node to the existing tree underneath the node specified
         by the context UID
 
@@ -3264,16 +3882,18 @@ class TemplateRouter(object):
         @param description: (optional) Describes this new node (default: None)
         @rtype:   dictionary
         @return:  Marshaled form of the created node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addNode", [data]
+        )
         return create_response(resp)
 
     def addTemplate(self, id, targetUid):
         """
-        
+
         Add a template to a device class.
 
         @type  id: string
@@ -3283,16 +3903,18 @@ class TemplateRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - nodeConfig: (dictionary) Object representing the added template
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addTemplate", [data]
+        )
         return create_response(resp)
 
     def addThreshold(self, **data):
         """
-        
+
         Add a threshold.
 
         @type    uid: string
@@ -3305,16 +3927,18 @@ class TemplateRouter(object):
         @keyword dataPoints: List of data points to select for this threshold
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addThreshold", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addThreshold", [data]
+        )
         return create_response(resp)
 
     def addThresholdToGraph(self, graphUid, thresholdUid):
         """
-        
+
         Add a threshold to a graph definition.
 
         @type  graphUid: string
@@ -3323,16 +3947,18 @@ class TemplateRouter(object):
         @param thresholdUid: Unique ID of the threshold to add
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "addThresholdToGraph", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "addThresholdToGraph", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None, additionalKeys=()):
         """
-        
+
         Server side method for asynchronous tree calls. Retrieves
         the immediate children of the node specified by "id"
 
@@ -3344,16 +3970,18 @@ class TemplateRouter(object):
         @param id: The uid of the node we are getting the children for
         @rtype:   [dictionary]
         @return:  Object representing the immediate children
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def copyTemplate(self, uid, targetUid):
         """
-        
+
         Copy a template to a device or device class.
 
         @type  uid: string
@@ -3362,80 +3990,90 @@ class TemplateRouter(object):
         @param targetUid: Unique ID of the device or device class to bind to template
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "copyTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "copyTemplate", [data]
+        )
         return create_response(resp)
 
     def deleteDataPoint(self, uid):
         """
-        
+
         Delete a data point.
 
         @type  uid: string
         @param uid: Unique ID of the data point to delete
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "deleteDataPoint", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "deleteDataPoint", [data]
+        )
         return create_response(resp)
 
     def deleteDataSource(self, uid):
         """
-        
+
         Delete a data source.
 
         @type  uid: string
         @param uid: Unique ID of the data source to delete
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "deleteDataSource", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "deleteDataSource", [data]
+        )
         return create_response(resp)
 
     def deleteGraphDefinition(self, uid):
         """
-        
+
         Delete a graph definition.
 
         @type  uid: string
         @param uid: Unique ID of the graph definition to delete
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "deleteGraphDefinition", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "deleteGraphDefinition", [data]
+        )
         return create_response(resp)
 
     def deleteGraphPoint(self, uid):
         """
-        
+
         Delete a graph point.
 
         @type  uid: string
         @param uid: Unique ID of the graph point to delete
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "deleteGraphPoint", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "deleteGraphPoint", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Deletes a node from the tree.
 
         B{NOTE}: You can not delete a root node of a tree
@@ -3445,32 +4083,36 @@ class TemplateRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - msg: (string) Status message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def deleteTemplate(self, uid):
         """
-        
+
         Delete a template.
 
         @type  uid: string
         @param uid: Unique ID of the template to delete
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "deleteTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "deleteTemplate", [data]
+        )
         return create_response(resp)
 
     def getAddTemplateTargets(self, query):
         """
-        
+
         Get a list of available device classes where new templates can be added.
 
         @type  query: string
@@ -3480,16 +4122,18 @@ class TemplateRouter(object):
              - data: ([dictionary]) List of objects containing an available device
              class UID and a human-readable label for that class
 
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getAddTemplateTargets", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getAddTemplateTargets", [data]
+        )
         return create_response(resp)
 
-    def getCopyTargets(self, uid, query=''):
+    def getCopyTargets(self, uid, query=""):
         """
-        
+
         Get a list of available device classes to copy a template to.
 
         @type  uid: string
@@ -3501,16 +4145,18 @@ class TemplateRouter(object):
         @return: B{Properties}:
             - data: ([dictionary]) List of objects containing an available device
              class UID and a human-readable label for that class
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getCopyTargets", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getCopyTargets", [data]
+        )
         return create_response(resp)
 
     def getDataPointDetails(self, uid):
         """
-        
+
         Get a data point's details.
 
         @type  uid: string
@@ -3520,16 +4166,18 @@ class TemplateRouter(object):
              - record: (dictionary) Object representing the data point
              - form: (dictionary) Object representing an ExtJS form for the data
              point
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getDataPointDetails", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getDataPointDetails", [data]
+        )
         return create_response(resp)
 
     def getDataPoints(self, query, uid):
         """
-        
+
         Get a list of available data points for a template.
 
         @type  query: string
@@ -3539,16 +4187,18 @@ class TemplateRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: ([dictionary]) List of objects representing data points
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getDataPoints", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getDataPoints", [data]
+        )
         return create_response(resp)
 
     def getDataSourceDetails(self, uid):
         """
-        
+
         Get a data source's details.
 
         @type  uid: string
@@ -3558,48 +4208,54 @@ class TemplateRouter(object):
              - record: (dictionary) Object representing the data source
              - form: (dictionary) Object representing an ExtJS form for the data
              source
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getDataSourceDetails", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getDataSourceDetails", [data]
+        )
         return create_response(resp)
 
     def getDataSourceTypes(self, query):
         """
-        
+
         Get a list of available data source types.
 
         @type  query: string
         @param query: not used
         @rtype:   [dictionary]
         @return:  List of objects representing data source types
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getDataSourceTypes", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getDataSourceTypes", [data]
+        )
         return create_response(resp)
 
     def getDataSources(self, id):
         """
-        
+
         Get the data sources for a template.
 
         @type  id: string
         @param id: Unique ID of a template
         @rtype:   [dictionary]
         @return:  List of objects representing representing data sources
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getDataSources", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getDataSources", [data]
+        )
         return create_response(resp)
 
     def getDeviceClassTemplates(self, id):
         """
-        
+
         Get all templates by device class. This will return a tree where device
         classes are nodes, and templates are leaves.
 
@@ -3607,16 +4263,18 @@ class TemplateRouter(object):
         @param id: not used
         @rtype:   [dictionary]
         @return:  List of objects representing the templates in tree hierarchy
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getDeviceClassTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getDeviceClassTemplates", [data]
+        )
         return create_response(resp)
 
     def getGraphDefinition(self, uid):
         """
-        
+
         Get a graph definition.
 
         @type  uid: string
@@ -3624,16 +4282,18 @@ class TemplateRouter(object):
         @rtype:   DirectResponse
         @return: B{Properties}:
             - data: (dictionary) Object representing a graph definition
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getGraphDefinition", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getGraphDefinition", [data]
+        )
         return create_response(resp)
 
-    def getGraphInstructionTypes(self, query=''):
+    def getGraphInstructionTypes(self, query=""):
         """
-        
+
         Get a list of available instruction types for graph points.
 
         @type  query: string
@@ -3641,16 +4301,18 @@ class TemplateRouter(object):
         @rtype:   DirectResponse
         @return: B{Properties}:
             - data: ([dictionary]) List of objects representing instruction types
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getGraphInstructionTypes", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getGraphInstructionTypes", [data]
+        )
         return create_response(resp)
 
     def getGraphPoints(self, uid):
         """
-        
+
         Get a list of graph points for a graph definition.
 
         @type  uid: string
@@ -3658,16 +4320,18 @@ class TemplateRouter(object):
         @rtype:  DirectResponse
         @return: B{Properties}:
             - data: ([dictionary]) List of objects representing graph points
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getGraphPoints", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getGraphPoints", [data]
+        )
         return create_response(resp)
 
     def getGraphs(self, uid, query=None):
         """
-        
+
         Get the graph definitions for a template.
 
         @type  uid: string
@@ -3676,16 +4340,18 @@ class TemplateRouter(object):
         @param query: not used
         @rtype:   [dictionary]
         @return:  List of objects representing representing graphs
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getGraphs", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getGraphs", [data]
+        )
         return create_response(resp)
 
     def getInfo(self, uid):
         """
-        
+
         Get the properties of an object.
 
         @type  uid: string
@@ -3694,46 +4360,52 @@ class TemplateRouter(object):
         @return:  B{Properties}
             - data: (dictionary) Object properties
             - form: (dictionary) Object representing an ExtJS form for the object
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getInfo", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getInfo", [data]
+        )
         return create_response(resp)
 
     def getObjTemplates(self, uid):
         """
-        
+
         @type  uid: string
         @param uid: Identifier for the object we want templates on, must descend from RRDView
         @rtype: DirectResponse
         @return: List of templates
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getObjTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getObjTemplates", [data]
+        )
         return create_response(resp)
 
     def getTemplates(self, id):
         """
-        
+
         Get all templates.
 
         @type  id: string
         @param id: not used
         @rtype:   [dictionary]
         @return:  List of objects representing the templates in tree hierarchy
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getTemplates", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getTemplates", [data]
+        )
         return create_response(resp)
 
     def getThresholdDetails(self, uid):
         """
-        
+
         Get a threshold's details.
 
         @type  uid: string
@@ -3742,32 +4414,36 @@ class TemplateRouter(object):
         @return:  B{Properties}:
              - record: (dictionary) Object representing the threshold
              - form: (dictionary) Object representing an ExtJS form for the threshold
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getThresholdDetails", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getThresholdDetails", [data]
+        )
         return create_response(resp)
 
     def getThresholdTypes(self, query):
         """
-        
+
         Get a list of available threshold types.
 
         @type  query: string
         @param query: not used
         @rtype:   [dictionary]
         @return:  List of objects representing threshold types
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getThresholdTypes", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getThresholdTypes", [data]
+        )
         return create_response(resp)
 
-    def getThresholds(self, uid, query=''):
+    def getThresholds(self, uid, query=""):
         """
-        
+
         Get the thresholds for a template.
 
         @type  uid: string
@@ -3776,30 +4452,34 @@ class TemplateRouter(object):
         @param query: not used
         @rtype:   [dictionary]
         @return:  List of objects representing representing thresholds
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "getThresholds", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "getThresholds", [data]
+        )
         return create_response(resp)
 
     def makeLocalRRDTemplate(self, uid, templateName):
         """
-        
+
         @type  uid: string
         @param uid: Identifer of the obj we wish to make the template local for
         @type  templateName: string
         @param templateName: identifier of the template
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "makeLocalRRDTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "makeLocalRRDTemplate", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -3810,46 +4490,52 @@ class TemplateRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
     def removeLocalRRDTemplate(self, uid, templateName):
         """
-        
+
         @type  uid: string
         @param uid: Identifer of the obj we wish to remove the local template
         @type  templateName: string
         @param templateName: identifier of the local template
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "removeLocalRRDTemplate", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "removeLocalRRDTemplate", [data]
+        )
         return create_response(resp)
 
     def removeThreshold(self, uid):
         """
-        
+
         Remove a threshold.
 
         @type  uid: string
         @param uid: Unique identifier of threshold to remove
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "removeThreshold", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "removeThreshold", [data]
+        )
         return create_response(resp)
 
     def setGraphDefinition(self, **data):
         """
-        
+
         Set attributes on an graph definition.
         This method accepts any keyword argument for the property that you wish
         to set. Properties are enumerated via getGraphDefinition(). The only
@@ -3860,48 +4546,57 @@ class TemplateRouter(object):
         @rtype:  DirectResponse
         @return: B{Properties}:
             - data: (dictionary) The modified object
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "setGraphDefinition", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "setGraphDefinition", [data]
+        )
         return create_response(resp)
 
     def setGraphDefinitionSequence(self, uids):
         """
-        
+
         Sets the sequence of graph definitions.
 
         @type  uids: [string]
         @param uids: List of graph definition UID's in desired order
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "setGraphDefinitionSequence", [data])
+        resp = client.make_request(
+            self.url_path,
+            "TemplateRouter",
+            "setGraphDefinitionSequence",
+            [data],
+        )
         return create_response(resp)
 
     def setGraphPointSequence(self, uids):
         """
-        
+
         Sets the sequence of graph points in a graph definition.
 
         @type  uids: [string]
         @param uids: List of graph point UID's in desired order
         @rtype:  DirectResponse
         @return: Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "setGraphPointSequence", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "setGraphPointSequence", [data]
+        )
         return create_response(resp)
 
     def setInfo(self, **data):
         """
-        
+
         Set attributes on an object.
         This method accepts any keyword argument for the property that you wish
         to set. The only required property is "uid".
@@ -3911,22 +4606,34 @@ class TemplateRouter(object):
         @rtype:  DirectResponse
         @return: B{Properties}:
             - data: (dictionary) The modified object
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "TemplateRouter", "setInfo", [data])
+        resp = client.make_request(
+            self.url_path, "TemplateRouter", "setInfo", [data]
+        )
         return create_response(resp)
 
+
 router.template = TemplateRouter()
+
 
 class EventsRouter(object):
 
     url_path = "evconsole_router"
 
-    def acknowledge(self, evids=None, excludeIds=None, params=None, uid=None, asof=None, limit=None):
+    def acknowledge(
+        self,
+        evids=None,
+        excludeIds=None,
+        params=None,
+        uid=None,
+        asof=None,
+        limit=None,
+    ):
         """
-        
+
         Acknowledge event(s).
 
         @type  evids: [string]
@@ -3946,16 +4653,20 @@ class EventsRouter(object):
         @param limit: (optional) Maximum number of events to update (default: None).
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "acknowledge", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "acknowledge", [data]
+        )
         return create_response(resp)
 
-    def add_event(self, summary, device, component, severity, evclasskey, evclass):
+    def add_event(
+        self, summary, device, component, severity, evclasskey, evclass
+    ):
         """
-        
+
         Create a new event.
 
         @type  summary: string
@@ -3972,16 +4683,18 @@ class EventsRouter(object):
         @type  evclass: string
         @param evclass: Event class for the new event
         @rtype:   DirectResponse
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "add_event", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "add_event", [data]
+        )
         return create_response(resp)
 
     def classify(self, evrows, evclass):
         """
-        
+
         Associate event(s) with an event class.
 
         @type  evrows: [dictionary]
@@ -3992,31 +4705,43 @@ class EventsRouter(object):
         @return:  B{Properties}:
            - msg: (string) Success/failure message
            - success: (boolean) True if class update successful
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "classify", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "classify", [data]
+        )
         return create_response(resp)
 
     def clear_heartbeats(self):
         """
-        
+
         Clear all heartbeat events
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - success: (boolean) True if heartbeats deleted successfully
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "clear_heartbeats", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "clear_heartbeats", [data]
+        )
         return create_response(resp)
 
-    def close(self, evids=None, excludeIds=None, params=None, uid=None, asof=None, limit=None):
+    def close(
+        self,
+        evids=None,
+        excludeIds=None,
+        params=None,
+        uid=None,
+        asof=None,
+        limit=None,
+    ):
         """
-        
+
         Close event(s).
 
         @type  evids: [string]
@@ -4036,16 +4761,18 @@ class EventsRouter(object):
         @param limit: (optional) Maximum number of events to update (default: None).
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "close", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "close", [data]
+        )
         return create_response(resp)
 
     def column_config(self, uid=None, archive=False):
         """
-        
+
         Get the current event console field column configuration.
 
         @type  uid: string
@@ -4055,16 +4782,18 @@ class EventsRouter(object):
                         of active events (default: False)
         @rtype:   [dictionary]
         @return:  A list of objects representing field columns
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "column_config", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "column_config", [data]
+        )
         return create_response(resp)
 
     def detail(self, evid):
         """
-        
+
         Get event details.
 
         @type  evid: string
@@ -4073,11 +4802,13 @@ class EventsRouter(object):
         @return:  B{Properties}:
            - event: ([dictionary]) List containing a dictionary representing
                     event details
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "detail", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "detail", [data]
+        )
         return create_response(resp)
 
     def getConfig(self):
@@ -4086,12 +4817,14 @@ class EventsRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "getConfig", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "getConfig", [data]
+        )
         return create_response(resp)
 
     def nextEventSummaryUpdate(self, next_request):
         """
-        
+
         When performing updates from the event console, updates are performed in batches
         to allow the user to see the progress of event changes and cancel out of updates
         while they are in progress. This works by specifying a limit to one of the close,
@@ -4102,11 +4835,13 @@ class EventsRouter(object):
 
         @type  next_request: dictionary
         @param next_request: The next_request field from the previous updates.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "nextEventSummaryUpdate", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "nextEventSummaryUpdate", [data]
+        )
         return create_response(resp)
 
     def postNote(self, uuid, note):
@@ -4115,12 +4850,24 @@ class EventsRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "postNote", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "postNote", [data]
+        )
         return create_response(resp)
 
-    def query(self, limit=0, start=0, sort='lastTime', dir='desc', params=None, archive=False, uid=None, detailFormat=False):
+    def query(
+        self,
+        limit=0,
+        start=0,
+        sort="lastTime",
+        dir="desc",
+        params=None,
+        archive=False,
+        uid=None,
+        detailFormat=False,
+    ):
         """
-        
+
         Query for events.
 
         @type  limit: integer
@@ -4146,25 +4893,48 @@ class EventsRouter(object):
            - events: ([dictionary]) List of objects representing events
            - totalCount: (integer) Total count of events returned
            - asof: (float) Current time
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "query", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "query", [data]
+        )
         return create_response(resp)
 
-    def queryArchive(self, limit=0, start=0, sort='lastTime', dir='desc', params=None, uid=None, detailFormat=False):
+    def queryArchive(
+        self,
+        limit=0,
+        start=0,
+        sort="lastTime",
+        dir="desc",
+        params=None,
+        uid=None,
+        detailFormat=False,
+    ):
         """
         None
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "queryArchive", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "queryArchive", [data]
+        )
         return create_response(resp)
 
-    def queryGenerator(self, sort='lastTime', dir='desc', evids=None, excludeIds=None, params=None, archive=False, uid=None, detailFormat=False):
+    def queryGenerator(
+        self,
+        sort="lastTime",
+        dir="desc",
+        evids=None,
+        excludeIds=None,
+        params=None,
+        archive=False,
+        uid=None,
+        detailFormat=False,
+    ):
         """
-        
+
         Query for events.
 
         @type  sort: string
@@ -4183,16 +4953,26 @@ class EventsRouter(object):
         @param uid: (optional) Context for the query (default: None)
         @rtype:   generator
         @return:  Generator returning events.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "queryGenerator", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "queryGenerator", [data]
+        )
         return create_response(resp)
 
-    def reopen(self, evids=None, excludeIds=None, params=None, uid=None, asof=None, limit=None):
+    def reopen(
+        self,
+        evids=None,
+        excludeIds=None,
+        params=None,
+        uid=None,
+        asof=None,
+        limit=None,
+    ):
         """
-        
+
         Reopen event(s).
 
         @type  evids: [string]
@@ -4212,48 +4992,58 @@ class EventsRouter(object):
         @param limit: (optional) Maximum number of events to update (Default: None).
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "reopen", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "reopen", [data]
+        )
         return create_response(resp)
 
     def setConfigValues(self, values):
         """
-        
+
         @type  values: Dictionary
         @param values: Key Value pairs of config values
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "setConfigValues", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "setConfigValues", [data]
+        )
         return create_response(resp)
 
     def unacknowledge(self, *args, **kwargs):
         """
-        
+
         Deprecated, Use reopen
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "unacknowledge", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "unacknowledge", [data]
+        )
         return create_response(resp)
 
-    def updateEventSummaries(self, update, event_filter=None, exclusion_filter=None, limit=None):
+    def updateEventSummaries(
+        self, update, event_filter=None, exclusion_filter=None, limit=None
+    ):
         """
         None
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "updateEventSummaries", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "updateEventSummaries", [data]
+        )
         return create_response(resp)
 
     def write_log(self, evid=None, message=None):
         """
-        
+
         Write a message to an event's log.
 
         @type  evid: string
@@ -4262,14 +5052,18 @@ class EventsRouter(object):
         @param message: Message to log
         @rtype:   DirectResponse
         @return:  Success message
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "EventsRouter", "write_log", [data])
+        resp = client.make_request(
+            self.url_path, "EventsRouter", "write_log", [data]
+        )
         return create_response(resp)
 
+
 router.events = EventsRouter()
+
 
 class DetailNavRouter(object):
 
@@ -4281,12 +5075,14 @@ class DetailNavRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DetailNavRouter", "getContextMenus", [data])
+        resp = client.make_request(
+            self.url_path, "DetailNavRouter", "getContextMenus", [data]
+        )
         return create_response(resp)
 
     def getDetailNavConfigs(self, uid=None, menuIds=None):
         """
-        
+
         return a list of Detail navigation configurations. Can be used to create
         navigation links. Format is:
         {
@@ -4295,26 +5091,32 @@ class DetailNavRouter(object):
         'xtype': <Ext type for the panel>,
         'text': <display name of the config info>
         }
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DetailNavRouter", "getDetailNavConfigs", [data])
+        resp = client.make_request(
+            self.url_path, "DetailNavRouter", "getDetailNavConfigs", [data]
+        )
         return create_response(resp)
 
     def getSecurityPermissions(self, uid):
         """
-        
+
         returns a dictionary of all the permissions a
         user has on the context
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "DetailNavRouter", "getSecurityPermissions", [data])
+        resp = client.make_request(
+            self.url_path, "DetailNavRouter", "getSecurityPermissions", [data]
+        )
         return create_response(resp)
 
+
 router.detailnav = DetailNavRouter()
+
 
 class ReportRouter(object):
 
@@ -4322,7 +5124,7 @@ class ReportRouter(object):
 
     def addNode(self, nodeType, contextUid, id):
         """
-        
+
         Add a new report or report organizer.
 
         @type  nodeType: string
@@ -4336,11 +5138,13 @@ class ReportRouter(object):
         @return:  B{Properties}:
            - tree: (dictionary) Object representing the new Reports tree
            - newNode: (dictionary) Object representing the added node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ReportRouter", "addNode", [data])
+        resp = client.make_request(
+            self.url_path, "ReportRouter", "addNode", [data]
+        )
         return create_response(resp)
 
     def asyncGetTree(self, id=None):
@@ -4349,12 +5153,14 @@ class ReportRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ReportRouter", "asyncGetTree", [data])
+        resp = client.make_request(
+            self.url_path, "ReportRouter", "asyncGetTree", [data]
+        )
         return create_response(resp)
 
     def deleteNode(self, uid):
         """
-        
+
         Remove a report or report organizer.
 
         @type  uid: string
@@ -4362,32 +5168,36 @@ class ReportRouter(object):
         @rtype:   [dictionary]
         @return:  B{Properties}:
            - tree: (dictionary) Object representing the new Reports tree
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ReportRouter", "deleteNode", [data])
+        resp = client.make_request(
+            self.url_path, "ReportRouter", "deleteNode", [data]
+        )
         return create_response(resp)
 
     def getReportTypes(self):
         """
-        
+
         Get the available report types.
 
         @rtype:   DirectResponse
         @return:  B{Properties}:
            - menuText: ([string]) Human readable list of report types
            - reportTypes: ([string]) A list of the available report types
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ReportRouter", "getReportTypes", [data])
+        resp = client.make_request(
+            self.url_path, "ReportRouter", "getReportTypes", [data]
+        )
         return create_response(resp)
 
     def moveNode(self, uid, target):
         """
-        
+
         Move a report or report organizer from one organizer to another.
 
         @type  uid: string
@@ -4398,16 +5208,18 @@ class ReportRouter(object):
         @return:  B{Properties}:
            - tree: (dictionary) Object representing the new Reports tree
            - newNode: (dictionary) Object representing the moved node
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ReportRouter", "moveNode", [data])
+        resp = client.make_request(
+            self.url_path, "ReportRouter", "moveNode", [data]
+        )
         return create_response(resp)
 
     def moveOrganizer(self, targetUid, organizerUid):
         """
-        
+
         Move the organizer uid to be underneath the organizer
         specified by the targetUid.
 
@@ -4418,75 +5230,91 @@ class ReportRouter(object):
         @rtype:   DirectResponse
         @return:  B{Properties}:
              - data: (dictionary) Moved organizer
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "ReportRouter", "moveOrganizer", [data])
+        resp = client.make_request(
+            self.url_path, "ReportRouter", "moveOrganizer", [data]
+        )
         return create_response(resp)
 
+
 router.report = ReportRouter()
+
 
 class SearchRouter(object):
 
     url_path = "search_router"
 
-    def getAllResults(self, query, category='', start=0, limit=50, sort='excerpt', dir='ASC'):
+    def getAllResults(
+        self, query, category="", start=0, limit=50, sort="excerpt", dir="ASC"
+    ):
         """
-        
+
         Returns ISearchResultSnippets for the results of the query.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "getAllResults", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "getAllResults", [data]
+        )
         return create_response(resp)
 
     def getAllSavedSearches(self, query=None, addManageSavedSearch=False):
         """
-        
+
         @returns [ISavedSearchInfo] All the searches the logged in
         user can access
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "getAllSavedSearches", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "getAllSavedSearches", [data]
+        )
         return create_response(resp)
 
     def getCategoryCounts(self, query):
         """
-        
+
         Given a search term this queries each of the adapters for a
         list of categories and the counts of the returned results
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "getCategoryCounts", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "getCategoryCounts", [data]
+        )
         return create_response(resp)
 
     def getLiveResults(self, query):
         """
-        
+
         Returns IQuickSearchResultSnippets for the results of the query.
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "getLiveResults", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "getLiveResults", [data]
+        )
         return create_response(resp)
 
     def getSavedSearch(self, searchName):
         """
-        
+
         @params string searchName: identifier of the search we are looking for
         @return DirectResponse: the data attribute will have our search terms
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "getSavedSearch", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "getSavedSearch", [data]
+        )
         return create_response(resp)
 
     def noProvidersPresent(self):
@@ -4495,45 +5323,54 @@ class SearchRouter(object):
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "noProvidersPresent", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "noProvidersPresent", [data]
+        )
         return create_response(resp)
 
     def removeSavedSearch(self, searchName):
         """
-        
+
         Removes the search specified by searchName
         @param string searchName
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "removeSavedSearch", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "removeSavedSearch", [data]
+        )
         return create_response(resp)
 
     def saveSearch(self, queryString, searchName):
         """
-        
+
         Adds this search to our collection of saved searches
         @param string queryString: term we are searching for
         @param string searchName: our query string's identifier
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "saveSearch", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "saveSearch", [data]
+        )
         return create_response(resp)
 
     def updateSavedSearch(self, searchName, queryString):
         """
-        
+
         Updates the specified search with the new query
         @param string searchName: name of the search we want to update
         @param string query: value of the new query we are searching on
-        
+
         """
         data = locals().copy()
         del data["self"]
-        resp = client.make_request(self.url_path, "SearchRouter", "updateSavedSearch", [data])
+        resp = client.make_request(
+            self.url_path, "SearchRouter", "updateSavedSearch", [data]
+        )
         return create_response(resp)
+
 
 router.search = SearchRouter()

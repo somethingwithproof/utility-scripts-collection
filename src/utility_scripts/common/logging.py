@@ -6,8 +6,8 @@ utility scripts, with support for various log destinations and formats.
 """
 
 import logging
-import sys
 from pathlib import Path
+import sys
 from typing import Dict, Optional, Union
 
 
@@ -50,7 +50,7 @@ def setup_logging(
         file_path = Path(log_file)
         # Ensure parent directory exists
         file_path.parent.mkdir(parents=True, exist_ok=True)
-        
+
         file_handler = logging.FileHandler(file_path)
         file_handler.setFormatter(formatter)
         root_logger.addHandler(file_handler)
